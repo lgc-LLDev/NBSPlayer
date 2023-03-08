@@ -1,0 +1,24 @@
+{
+  "format_version": 1,
+  "tooth": "github.com/lgc-LLSEDev/NbsPlayer",
+  "version": "1.0.1",
+  "dependencies": {},
+  "information": {
+    "name": "NbsPlayer",
+    "description": "BDS 中的 NBS 音乐播放器！",
+    "author": "student_2333 <lgc2333@126.com>",
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/lgc-LLSEDev/NbsPlayer"
+  },
+  "placement": [
+    {
+      "source": "dist/*",
+      "destination": "plugins/nodejs/nbs_player/dist/*"
+    },
+    {
+      "source": "package.json",
+      "destination": "plugins/nodejs/nbs_player/package.json"
+    }
+  ],
+  "possession": ["plugins/NbsPlayer/"]
+}

@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/triple-slash-reference */
 /* global ll mc Format PermType ParamType BinaryStream Packet Command CommandOrigin CommandOutput */
 // LiteLoaderScript Dev Helper
-/// <reference path="d:\Coding\LLSEAids/dts/llaids/src/index.d.ts"/>
+/// <reference path="d:\Coding\bds\LLSEAids/dts/llaids/src/index.d.ts"/>
 
 import * as fs from 'fs';
 import { fromArrayBuffer, Song } from '@encode42/nbs.js';
@@ -406,6 +406,7 @@ function trimQuote(str: string) {
   cmd.overload(['player', 'filename', 'forcePlay']);
 
   cmd.setCallback(
+    // @ts-expect-error 芝士误报
     (
       _: Command,
       __: CommandOrigin,
