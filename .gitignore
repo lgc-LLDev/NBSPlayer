@@ -1,0 +1,13 @@
+node_modules/
+dist/
+package-lock.json
+.vscode/
+test.*
+*.llplugin
+*.min.*
+pnpm-lock.yaml
+
+/node_modules/
+*.nbs
+/dist/
+test.*
