@@ -3,7 +3,7 @@
 # NbsPlayer
 
 BDS 中的 NBS 音乐播放器！  
-下载插件请去[Releases](https://github.com/lgc2333/LLSEPlugins/releases)
+下载插件请去[Releases](https://github.com/lgc-LLSEDev/NbsPlayer/releases)
 
 ## 介绍
 
@@ -71,7 +71,7 @@ BDS 中的 NBS 音乐播放器！
 
 ## 安装
 
-请去 [Releases](https://github.com/lgc2333/LLSEPlugins/releases) 下载最新版插件附件，解压到 bds 的插件目录
+请去 [Releases](https://github.com/lgc-LLSEDev/NbsPlayer/releases) 下载最新版插件附件，解压到 bds 的插件目录
 
 ## 配置
 
