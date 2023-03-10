@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/triple-slash-reference */
 /* global ll mc Format PermType ParamType BinaryStream Packet Command CommandOrigin CommandOutput */
 // LiteLoaderScript Dev Helper
-/// <reference path="d:\Coding\bds\LLSEAids/dts/llaids/src/index.d.ts"/>
+/// <reference path="../../HelperLib/src/index.d.ts"/>
 
 import * as fs from 'fs';
 import { fromArrayBuffer, Song } from '@encode42/nbs.js';
