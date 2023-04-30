@@ -18,7 +18,7 @@ BDS 中的 NBS 音乐播放器！
 - 支持超过两个八度限制的音符
 - 支持自定义音色
   - 请将自定义音色的文件名称设置为`playsound`命令可以播放的声音 ID，例：`dig.stone.ogg`，支持资源包自定义的音色
-    ![例子](https://media.githubusercontent.com/media/lgc-LLSEDev/readme/main/NbsPlayer/QQ%E5%9B%BE%E7%89%8720221030150141.png)
+    ![例子](https://raw.githubusercontent.com/lgc-LLSEDev/readme/main/NbsPlayer/QQ%E5%9B%BE%E7%89%8720221030150141.png)
 
 ### 缺点
 
@@ -31,10 +31,10 @@ BDS 中的 NBS 音乐播放器！
 
 ### 截图
 
-![1](https://media.githubusercontent.com/media/lgc-LLSEDev/readme/main/NbsPlayer/1.png)  
-![2](https://media.githubusercontent.com/media/lgc-LLSEDev/readme/main/NbsPlayer/2.png)  
-![3](https://media.githubusercontent.com/media/lgc-LLSEDev/readme/main/NbsPlayer/3.png)  
-![4](https://media.githubusercontent.com/media/lgc-LLSEDev/readme/main/NbsPlayer/4.png)
+![1](https://raw.githubusercontent.com/lgc-LLSEDev/readme/main/NbsPlayer/1.png)  
+![2](https://raw.githubusercontent.com/lgc-LLSEDev/readme/main/NbsPlayer/2.png)  
+![3](https://raw.githubusercontent.com/lgc-LLSEDev/readme/main/NbsPlayer/3.png)  
+![4](https://raw.githubusercontent.com/lgc-LLSEDev/readme/main/NbsPlayer/4.png)
 
 ### 指令
 
@@ -77,7 +77,7 @@ BDS 中的 NBS 音乐播放器！
 
 直接将 nbs 文件放置在插件数据目录即可，无需重启服务器~~，注意文件名不要有特殊字符、中文等，否则可能会出错~~（应该已修复）  
 例图：  
-![6](https://media.githubusercontent.com/media/lgc-LLSEDev/readme/main/NbsPlayer/6.png)
+![6](https://raw.githubusercontent.com/lgc-LLSEDev/readme/main/NbsPlayer/6.png)
 
 ## 配置文件
 
