@@ -1,32 +1,23 @@
 {
-  "name": "nbs_player",
-  "version": "1.0.1",
-  "description": "在BDS中播放nbs格式红石音乐文件！",
-  "main": "dist/index.js",
+  "name": "nbs-player-workspace",
+  "private": true,
+  "version": "0.0.0",
+  "description": "",
+  "workspaces": [
+    "nbs-play/packages/*",
+    "nbs-player"
+  ],
   "scripts": {
-    "test": "npx ts-node dist/test.js",
-    "build": "npx tsc"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/lgc2333/LLSEPlugins.git#main"
+    "build": "pnpm run -r build",
+    "clean": "pnpm run -r clean"
   },
   "keywords": [
     "nbs",
-    "minecraft",
-    "bds",
-    "bedrock"
+    "noteblock",
+    "minecraft"
   ],
-  "author": "student_2333 <lgc2333@126.com>",
+  "author": "student_2333 <lgc2333@126.com> (https://lgc2333.top)",
+  "repository": "github:lgc-LLDev/NbsPlayer",
   "license": "Apache-2.0",
-  "bugs": {
-    "url": "https://github.com/lgc2333/LLSEPlugins/issues"
-  },
-  "homepage": "https://github.com/lgc2333/LLSEPlugins/tree/main#readme",
-  "dependencies": {
-    "@encode42/nbs.js": "^4.0.0"
-  },
-  "devDependencies": {
-    "@types/node": "^18.7.5"
-  }
+  "funding": "https://afdian.net/a/lgc2333"
 }

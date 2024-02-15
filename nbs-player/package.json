@@ -1,0 +1,29 @@
+{
+  "name": "nbs-player",
+  "version": "2.0.0",
+  "description": "Play NBS files in MCBE with LL",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "rollup -c",
+    "clean": "rimraf ./dist"
+  },
+  "keywords": [
+    "nbs",
+    "minecraft",
+    "bds",
+    "bedrock"
+  ],
+  "author": "student_2333 <lgc2333@126.com> (https://lgc2333.top)",
+  "repository": "github:lgc-LLDev/NbsPlayer",
+  "license": "Apache-2.0",
+  "funding": "https://afdian.net/a/lgc2333",
+  "dependencies": {
+    "nbs-play": "workspace:^"
+  },
+  "devDependencies": {
+    "rimraf": "^5.0.5",
+    "rollup": "^3.4.0",
+    "@rollup/plugin-typescript": "^9.0.2",
+    "@rollup/plugin-node-resolve": "^15.2.3"
+  }
+}

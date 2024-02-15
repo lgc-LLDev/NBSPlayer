@@ -1,0 +1,3 @@
+[submodule "nbs-play"]
+	path = nbs-play
+	url = https://github.com/lgc2333/nbs-play
