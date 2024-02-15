@@ -18,12 +18,17 @@
   "license": "Apache-2.0",
   "funding": "https://afdian.net/a/lgc2333",
   "dependencies": {
-    "nbs-play": "workspace:^"
+    "event-target-polyfill": "^0.0.4",
+    "form-api-ex": "workspace:^",
+    "nbs-play": "workspace:^",
+    "text-encoding": "^0.7.0"
   },
   "devDependencies": {
-    "rimraf": "^5.0.5",
-    "rollup": "^3.4.0",
+    "@rollup/plugin-json": "^5.0.1",
+    "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-typescript": "^9.0.2",
-    "@rollup/plugin-node-resolve": "^15.2.3"
+    "@types/text-encoding": "^0.0.39",
+    "rimraf": "^5.0.5",
+    "rollup": "^3.4.0"
   }
 }

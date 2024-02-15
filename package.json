@@ -19,5 +19,8 @@
   "author": "student_2333 <lgc2333@126.com> (https://lgc2333.top)",
   "repository": "github:lgc-LLDev/NbsPlayer",
   "license": "Apache-2.0",
-  "funding": "https://afdian.net/a/lgc2333"
+  "funding": "https://afdian.net/a/lgc2333",
+  "dependencies": {
+    "@rollup/plugin-commonjs": "^25.0.7"
+  }
 }
