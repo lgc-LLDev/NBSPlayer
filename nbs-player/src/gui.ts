@@ -39,13 +39,13 @@ export async function playControl(player: LLSE_Player): OperationPromise {
       operation: () =>
         catchAndLog(
           playing // should re-get the player here because it may change
-            ? playingPlayers[player.xuid].pause()
-            : playingPlayers[player.xuid].resume()
+            ? playingPlayers[player.xuid]?.pause()
+            : playingPlayers[player.xuid]?.resume()
         ),
     },
     {
       text: '⏹️ 停止',
-      operation: () => catchAndLog(playingPlayers[player.xuid].stop()),
+      operation: () => catchAndLog(playingPlayers[player.xuid]?.stop()),
     },
   ]);
   if ((await form.sendAsync(player)) === FormClose) return InnerFormClose;
