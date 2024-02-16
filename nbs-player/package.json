@@ -19,9 +19,9 @@
   "funding": "https://afdian.net/a/lgc2333",
   "dependencies": {
     "event-target-polyfill": "^0.0.4",
+    "text-encoding": "^0.7.0",
     "form-api-ex": "workspace:^",
-    "nbs-play": "workspace:^",
-    "text-encoding": "^0.7.0"
+    "nbs-play": "workspace:^"
   },
   "devDependencies": {
     "@rollup/plugin-json": "^5.0.1",

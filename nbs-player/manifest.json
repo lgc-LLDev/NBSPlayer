@@ -1,6 +1,6 @@
 {
-  "entry": "index.js",
-  "name": "NbsPlayer",
+  "entry": "NBSPlayer.js",
+  "name": "NBSPlayer",
   "type": "lse-quickjs",
   "dependencies": [
     {

@@ -3501,16 +3501,46 @@ globalThis.TextEncoder = textEncoding.TextEncoder;
 var version$1 = "2.0.0";
 var description = "Play NBS files in MCBE with LL";
 
-const PLUGIN_NAME = 'NbsPlayer';
+const PLUGIN_NAME = 'NBSPlayer';
 const PLUGIN_VERSION = (version$1.split('.').map((v) => Number(v)));
 const PLUGIN_DESCRIPTION = description;
 const PLUGIN_EXTRA = { Author: 'student_2333', License: 'Apache-2.0' };
-const dataPath = `./plugins/${PLUGIN_NAME}/data`;
-if (!file.exists(dataPath))
-    file.mkdir(dataPath);
+const BASE_PATH = `./plugins/${PLUGIN_NAME}`;
+const NBS_PATH = `${BASE_PATH}/nbs`;
+[BASE_PATH, NBS_PATH].forEach((x) => {
+    if (!file.exists(x))
+        file.mkdir(x);
+});
+logger.setTitle(PLUGIN_NAME);
 
-var version = "0.3.2";
+var version = "0.5.1";
+
+const NAME = 'FormAPIEx';
 (version.split('.').map((v) => Number(v)));
+const FormClose = Symbol(`${NAME}_FormClose`);
+
+/******************************************************************************
+Copyright (c) Microsoft Corporation.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+***************************************************************************** */
+/* global Reflect, Promise, SuppressedError, Symbol */
+
+
+function __classPrivateFieldGet(receiver, state, kind, f) {
+    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
+    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+    return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+}
 
 typeof SuppressedError === "function" ? SuppressedError : function (error, suppressed, message) {
     var e = new Error(message);
@@ -3528,7 +3558,541 @@ function formatError(e) {
         msg = e.stack || e.message;
     return String(msg);
 }
-var formatError_1 = formatError;
+/**
+ * 使用 json 序列化及反序列化深复制对象
+ * @param obj 对象
+ * @returns 复制后对象
+ */
+function deepClone(obj) {
+    return JSON.parse(JSON.stringify(obj));
+}
+function sendFormAsync(player, form) {
+    return new Promise((resolve) => {
+        player.sendForm(form, (_, data) => setTimeout(() => resolve(data === null || data === undefined ? FormClose : data), 0));
+    });
+}
+
+var _CustomFormEx_objects;
+/**
+ * 使用 CustomFormObject 构建自定义表单对象
+ * @param formTitle 表单标题
+ * @param objects 表单元素
+ * @returns 构建好的表单
+ */
+function buildCustomForm(formTitle, objects) {
+    const form = mc.newCustomForm();
+    form.setTitle(formTitle);
+    for (const obj of objects) {
+        switch (obj.type) {
+            case 'label': {
+                form.addLabel(obj.text);
+                break;
+            }
+            case 'input': {
+                const { title, placeholder, defaultVal } = obj;
+                form.addInput(title, placeholder ?? '', defaultVal ?? '');
+                break;
+            }
+            case 'switch': {
+                const { title, defaultVal } = obj;
+                form.addSwitch(title, defaultVal ?? false);
+                break;
+            }
+            case 'dropdown': {
+                const { title, items, defaultVal } = obj;
+                form.addDropdown(title, items, defaultVal ?? 0);
+                break;
+            }
+            case 'slider': {
+                const { title, min, max, step, defaultVal } = obj;
+                form.addSlider(title, min, max, step ?? 1, defaultVal ?? min);
+                break;
+            }
+            case 'stepSlider': {
+                const { title, items, defaultVal } = obj;
+                form.addStepSlider(title, items, defaultVal ?? 0);
+                break;
+            }
+            // no default
+        }
+    }
+    return form;
+}
+class CustomFormEx {
+    /**
+     * @param title 表单标题
+     */
+    constructor(title = '') {
+        /** 表单标题 */
+        this.title = '';
+        _CustomFormEx_objects.set(this, []);
+        this.title = title;
+    }
+    /**
+     * 获取表单元素列表
+     */
+    get objects() {
+        return deepClone(__classPrivateFieldGet(this, _CustomFormEx_objects, "f"));
+    }
+    /**
+     * 获取表单元素数量
+     */
+    get length() {
+        return __classPrivateFieldGet(this, _CustomFormEx_objects, "f").length;
+    }
+    /**
+     * 设置表单标题
+     * @param val 标题
+     * @returns 自身，便于链式调用
+     */
+    setTitle(val) {
+        this.title = val;
+        return this;
+    }
+    // add object
+    // 格式化之后着色有问题
+    // prettier-ignore
+    /**
+     * 向表单尾部添加一个元素
+     * @param id 元素 id
+     * @param obj 元素
+     * @returns 自身，便于链式调用
+     */
+    push(id, obj) {
+        __classPrivateFieldGet(this, _CustomFormEx_objects, "f").push([id, obj]);
+        return this;
+    }
+    // prettier-ignore
+    /**
+     * 向表单头部添加一个元素
+     * @param id 元素 id
+     * @param obj 元素
+     * @returns 自身，便于链式调用
+     */
+    unshift(id, obj) {
+        __classPrivateFieldGet(this, _CustomFormEx_objects, "f").unshift([id, obj]);
+        return this;
+    }
+    // prettier-ignore
+    /**
+     * 向表单插入一个元素
+     * @param index 插入位置
+     * @param id 元素 id
+     * @param obj 元素
+     * @returns 自身，便于链式调用
+     */
+    insert(index, id, obj) {
+        __classPrivateFieldGet(this, _CustomFormEx_objects, "f").splice(index, 0, [id, obj]);
+        return this;
+    }
+    // remove object
+    /**
+     * 删除表单元素
+     * @param id 元素 id
+     * @returns 自身，便于链式调用
+     */
+    remove(id) {
+        for (let i = 0; i < __classPrivateFieldGet(this, _CustomFormEx_objects, "f").length; i += 1) {
+            const [objId] = __classPrivateFieldGet(this, _CustomFormEx_objects, "f")[i];
+            if (objId === id) {
+                __classPrivateFieldGet(this, _CustomFormEx_objects, "f").splice(i, 1);
+                break;
+            }
+        }
+        return this;
+    }
+    get(id) {
+        if (typeof id === 'number')
+            return __classPrivateFieldGet(this, _CustomFormEx_objects, "f")[id];
+        for (const [objId, val] of __classPrivateFieldGet(this, _CustomFormEx_objects, "f")) {
+            if (objId === id)
+                return val;
+        }
+        return null;
+    }
+    addLabel(arg1, arg2) {
+        const id = arg2 ? arg1 : undefined;
+        const text = arg2 ?? arg1;
+        return this.push(id, { type: 'label', text });
+    }
+    /**
+     * 向表单添加一个输入框
+     * @param id 元素 id
+     * @param title 输入框标题
+     * @param options 附加选项
+     * @returns 自身，便于链式调用
+     */
+    addInput(id, title, options = {}) {
+        const { placeholder, default: defaultVal } = options;
+        return this.push(id, {
+            type: 'input',
+            title,
+            placeholder,
+            defaultVal,
+        });
+    }
+    /**
+     * 向表单添加一个开关
+     * @param id 元素 id
+     * @param title 开关标题
+     * @param defaultVal 开关默认状态，默认为 `false`
+     * @returns 自身，便于链式调用
+     */
+    addSwitch(id, title, defaultVal = false) {
+        return this.push(id, { type: 'switch', title, defaultVal });
+    }
+    /**
+     * 向表单添加一个下拉框
+     * @param id 元素 id
+     * @param title 下拉框标题
+     * @param items 下拉框元素
+     * @param defaultVal 下拉框默认选择元素位置，默认为 `0`
+     * @returns 自身，便于链式调用
+     */
+    addDropdown(id, title, items, defaultVal = 0) {
+        return this.push(id, { type: 'dropdown', title, items, defaultVal });
+    }
+    /**
+     * 向表单添加一个滑块
+     * @param id 元素 id
+     * @param title 滑块标题
+     * @param min 滑块最小值
+     * @param max 滑块最大值
+     * @param options 附加选项
+     * @returns 自身，便于链式调用
+     */
+    addSlider(id, title, min, max, options = {}) {
+        const { step, default: defaultVal } = options;
+        return this.push(id, { type: 'slider', title, min, max, step, defaultVal });
+    }
+    /**
+     * 向表单添加一个步进滑块
+     * @param id 元素 id
+     * @param title 步进滑块标题
+     * @param items 步进滑块元素列表
+     * @param defaultVal 滑块默认位置，默认为 `0`
+     * @returns 自身，便于链式调用
+     */
+    addStepSlider(id, title, items, defaultVal = 0) {
+        return this.push(id, { type: 'stepSlider', title, items, defaultVal });
+    }
+    // send
+    parseReturn(data) {
+        const res = {};
+        for (let i = 0; i < data.length; i += 1) {
+            const [id] = __classPrivateFieldGet(this, _CustomFormEx_objects, "f")[i];
+            const val = data[i] ?? undefined;
+            if (id)
+                res[id] = val;
+        }
+        return res;
+    }
+    /**
+     * 异步向玩家发送该表单
+     * @param player 玩家对象
+     * @returns 返回结果，玩家关闭表单或发送失败返回 FormClose
+     */
+    async sendAsync(player) {
+        const data = await sendFormAsync(player, buildCustomForm(this.title, this.objects.map((v) => v[1])));
+        if (data === FormClose)
+            return FormClose;
+        return this.parseReturn(data);
+    }
+}
+_CustomFormEx_objects = new WeakMap();
+
+/**
+ * 异步向玩家发送模式表单
+ * @param player 玩家对象
+ * @param title 表单标题
+ * @param content 表单内容
+ * @param confirmButton 确认按钮标题
+ * @param cancelButton 取消按钮标题
+ * @returns 玩家选择的按钮
+ */
+function sendModalFormAsync(player, title, content, confirmButton = '§a确认', cancelButton = '§c取消') {
+    // 不知道怎么回事按取消会返回 null / undefined，干脆直接转 boolean
+    return new Promise((resolve) => {
+        player.sendModalForm(title, content, confirmButton, cancelButton, (_, data) => setTimeout(() => resolve(!!data), 0));
+    });
+}
+
+class SimpleFormAsync {
+    /**
+     * @param options 附加选项
+     */
+    constructor(options = {}) {
+        /** 表单标题 */
+        this.title = '';
+        /** 表单内容 */
+        this.content = '';
+        /** 表单按钮 `[ text, image ]` */
+        this.buttons = [];
+        const { title, content, buttons } = options;
+        if (title)
+            this.title = title;
+        if (content)
+            this.content = content;
+        if (buttons)
+            this.buttons = buttons;
+    }
+    /**
+     * 设置表单标题
+     * @param val 标题
+     * @returns 自身，便于链式调用
+     */
+    setTitle(val) {
+        this.title = val;
+        return this;
+    }
+    /**
+     * 设置表单内容
+     * @param val 内容
+     * @returns 自身，便于链式调用
+     */
+    setContent(val) {
+        this.content = val;
+        return this;
+    }
+    /**
+     * 给表单添加一个按钮
+     * @param text 按钮文本
+     * @param image 按钮图片
+     * @returns 自身，便于链式调用
+     */
+    addButton(text, image) {
+        this.buttons.push([text, image]);
+        return this;
+    }
+    /**
+     * 异步向玩家发送该表单
+     * @param player 玩家对象
+     * @returns 玩家选择的按钮序号，玩家关闭表单或发送失败返回 FormClose
+     */
+    sendAsync(player) {
+        const form = mc
+            .newSimpleForm()
+            .setTitle(this.title)
+            .setContent(this.content);
+        this.buttons.forEach(([text, image]) => {
+            if (image)
+                form.addButton(text, image);
+            else
+                form.addButton(text);
+        });
+        return sendFormAsync(player, form);
+    }
+}
+
+class SimpleFormEx {
+    /**
+     * @param buttons 表单按钮参数
+     */
+    constructor(buttons = []) {
+        /** 表单标题 */
+        this.title = '';
+        /**
+         * 表单内容
+         *
+         * 可用变量
+         * - `{{currentPage}}` - 当前页数
+         * - `{{maxPage}}` - 最大页数
+         * - `{{count}}` - 条目总数
+         */
+        this.content = '§a第 §e{{currentPage}} §f/ §6{{maxPage}} §a页 §7| §a共 §e{{count}} §a条';
+        /** 表单按钮参数列表 */
+        this.buttons = [];
+        /**
+         * 表单按钮格式化函数
+         * @param v 表单按钮对应的参数
+         * @param index 按钮对应的位置
+         * @param array 整个表单按钮参数列表
+         * @returns 格式化后的按钮 `[ text, image ]`
+         */
+        // eslint-disable-next-line class-methods-use-this
+        this.formatter = (v) => [`§3${String(v)}`];
+        /** 表单是否可翻页 */
+        this.canTurnPage = false;
+        /** 表单是否显示跳页按钮 */
+        this.canJumpPage = false;
+        /** 表单每页最大项目数 */
+        this.maxPageNum = 15;
+        /** 表单是否显示搜索按钮 */
+        this.hasSearchButton = false;
+        // eslint-disable-next-line class-methods-use-this
+        /**
+         * 表单按钮搜索函数
+         * @param buttons 整个表单按钮参数列表
+         * @param param 搜索关键词参数
+         * @returns 搜索到的按钮参数列表
+         */
+        this.searcher = (buttons, param) => {
+            const params = param.toLowerCase().split(/\s/g);
+            const formatted = this.formatButtons(buttons).map((v) => v[0].toLowerCase());
+            const result = [];
+            formatted.forEach((v, i) => {
+                for (const wd of params) {
+                    const btn = buttons[i];
+                    if (v.includes(wd) && !result.includes(btn))
+                        result.push(btn);
+                }
+            });
+            return result;
+        };
+        this.buttons = buttons;
+    }
+    /**
+     * 格式化给定按钮
+     * @param buttons 表单按钮参数列表
+     * @returns 格式化后的按钮
+     */
+    formatButtons(buttons = this.buttons) {
+        return buttons.map(this.formatter);
+    }
+    /**
+     * @returns 表单最大页数
+     */
+    getMaxPageNum() {
+        return this.canTurnPage
+            ? Math.ceil(this.buttons.length / this.maxPageNum)
+            : 1;
+    }
+    /**
+     * 获取对应页数的按钮参数列表
+     * @param page 页码
+     * @returns 按钮参数列表
+     */
+    getPage(page = 1) {
+        if (page > this.getMaxPageNum())
+            return [];
+        return this.buttons.slice((page - 1) * this.maxPageNum, page * this.maxPageNum);
+    }
+    /**
+     * 异步向玩家发送搜索表单
+     * @param player 玩家对象
+     * @param defaultVal 搜索框默认内容
+     * @returns 选择的搜索结果按钮参数。返回 null 为没搜到, FormClose 为取消搜索
+     */
+    async sendSearchForm(player, defaultVal = '') {
+        const form = new CustomFormEx(this.title);
+        const res = await form
+            .addInput('param', '请输入你要搜索的内容', { default: defaultVal })
+            .sendAsync(player);
+        if (res === FormClose)
+            return FormClose;
+        const searched = this.searcher(this.buttons, res.param);
+        if (!searched.length) {
+            await new SimpleFormAsync({
+                title: this.title,
+                content: '§6没有搜索到结果',
+            }).sendAsync(player);
+            return null;
+        }
+        const searchForm = new SimpleFormEx();
+        searchForm.title = this.title;
+        searchForm.content = `§a为您找到了 §l§6${searched.length} §r§a个结果\n${searchForm.content}`;
+        searchForm.buttons = searched;
+        searchForm.formatter = this.formatter;
+        searchForm.canTurnPage = this.canTurnPage;
+        searchForm.canJumpPage = this.canJumpPage;
+        searchForm.maxPageNum = this.maxPageNum;
+        searchForm.hasSearchButton = false;
+        const selected = await searchForm.sendAsync(player);
+        return selected === FormClose ? FormClose : selected;
+    }
+    /**
+     * 异步向玩家发送表单
+     * @param player 玩家对象
+     * @param page 页码
+     * @returns 给定的按钮参数，表单被玩家关闭或发送失败返回 FormClose
+     */
+    async sendAsync(player, page = 1) {
+        const buttons = this.canTurnPage ? this.getPage(page) : this.buttons;
+        const formattedButtons = this.formatButtons(buttons);
+        const maxPage = this.getMaxPageNum();
+        const pageAboveOne = maxPage > 1;
+        const hasJumpBtn = this.canJumpPage && pageAboveOne;
+        const hasPreviousPage = page > 1 && pageAboveOne;
+        const hasNextPage = page < maxPage && pageAboveOne;
+        if (hasPreviousPage)
+            formattedButtons.unshift(['§2<- 上一页']);
+        if (hasJumpBtn)
+            formattedButtons.unshift(['§1跳页']);
+        if (this.hasSearchButton)
+            formattedButtons.unshift(['§1搜索']);
+        if (hasNextPage)
+            formattedButtons.push(['§2下一页 ->']);
+        const formatContent = (content) => {
+            const count = this.buttons.length;
+            const formatMap = {
+                currentPage: page,
+                maxPage,
+                count,
+            };
+            for (const [key, val] of Object.entries(formatMap)) {
+                content = content.replaceAll(`{{${key}}}`, String(val));
+            }
+            return content;
+        };
+        const resultIndex = await new SimpleFormAsync({
+            title: this.title,
+            content: formatContent(this.content),
+            buttons: formattedButtons,
+        }).sendAsync(player);
+        if (resultIndex === FormClose)
+            return FormClose;
+        let offset = 0;
+        if (this.hasSearchButton) {
+            if (resultIndex === offset) {
+                const res = await this.sendSearchForm(player);
+                return res === null || res === FormClose
+                    ? this.sendAsync(player, page)
+                    : res;
+            }
+            offset += 1;
+        }
+        if (hasJumpBtn) {
+            if (resultIndex === offset) {
+                const res = await new CustomFormEx(this.title)
+                    .addSlider('num', '请选择你要跳转的页数', 1, maxPage, {
+                    default: page,
+                })
+                    .sendAsync(player);
+                return this.sendAsync(player, res === FormClose ? page : res.num);
+            }
+            offset += 1;
+        }
+        if (hasPreviousPage) {
+            if (resultIndex === offset) {
+                return this.sendAsync(player, page - 1);
+            }
+            offset += 1;
+        }
+        if (hasNextPage && resultIndex + 1 === formattedButtons.length) {
+            return this.sendAsync(player, page + 1);
+        }
+        const realIndex = resultIndex - offset;
+        return buttons[realIndex];
+    }
+}
+
+class SimpleFormOperational {
+    constructor(title = '', content = '', buttons = []) {
+        this.title = title;
+        this.content = content;
+        this.buttons = buttons;
+    }
+    async sendAsync(player) {
+        const form = new SimpleFormEx(this.buttons);
+        form.title = this.title;
+        form.content = this.content;
+        form.formatter = ({ text, image }) => [text, image];
+        const res = await form.sendAsync(player);
+        if (res === FormClose)
+            return FormClose;
+        return res.operation();
+    }
+}
 
 class PlayerEvent extends Event {
     constructor(type, eventInitDict) {
@@ -3723,8 +4287,8 @@ class BasePlayer extends PlayerEventTarget {
     get ended() {
         return this.playedTicksCounter >= this.length;
     }
-    /** 已播放的 tick 数 */
     get playedTicks() {
+        /** 已播放的 tick 数 */
         return this.playedTicksCounter;
     }
     /** 已播放的 note 数 */
@@ -3793,7 +4357,7 @@ class BasePlayer extends PlayerEventTarget {
         return passedTicks;
     }
     /** 执行 {@link BasePlayer.tick} 后返回当前需要播放的 note 列表 */
-    tickNotes() {
+    async tickNotes() {
         const lastTick = Math.ceil(this.playedTicksCounter);
         this.tick();
         const currentTick = Math.ceil(this.playedTicksCounter);
@@ -3805,8 +4369,8 @@ class BasePlayer extends PlayerEventTarget {
             // await this.stopPlay();
             return;
         }
-        const notes = this.tickNotes();
-        if (notes) {
+        const notes = await this.tickNotes();
+        if (notes && notes.length) {
             await Promise.all(notes.map((note) => this.playNote.bind(this)(note)));
             this.playedNotesCounter += notes.length;
         }
@@ -3829,7 +4393,7 @@ class BasePlayer extends PlayerEventTarget {
     /** 开始或继续播放 */
     async startPlay(resetProgress = true) {
         if (this.playing)
-            throw new Error('Already playing');
+            return;
         if (resetProgress || this.ended)
             await this.seek(0);
         await this.prepare();
@@ -3839,12 +4403,13 @@ class BasePlayer extends PlayerEventTarget {
     }
     /** 暂停或停止播放 */
     async stopPlay(resetProgress = true) {
-        if (!this.playing)
-            throw new Error('Not playing');
-        await this.stopPlayTask();
+        const needDispatchEv = this.playing || (resetProgress && this.playedTicks > 0);
+        if (this.playing)
+            await this.stopPlayTask();
         if (resetProgress)
             this.seek(0);
-        this.dispatchEvent(new PlayerEvent('stop', { resetProgress }));
+        if (needDispatchEv)
+            this.dispatchEvent(new PlayerEvent('stop', { resetProgress }));
     }
     async play() {
         await this.startPlay();
@@ -3879,12 +4444,18 @@ var LoopType;
     LoopType[LoopType["Shuffle"] = 3] = "Shuffle";
 })(LoopType || (LoopType = {}));
 
+function catchAndLog(promise) {
+    return promise.catch((e) => {
+        logger.error(formatError(e));
+        return e;
+    });
+}
 const ticker = new (class {
     constructor() {
         this.callbacks = [];
         this.calling = false;
         mc.listen('onTick', () => {
-            this.trigger();
+            catchAndLog(this.trigger());
         });
     }
     add(callback) {
@@ -3923,7 +4494,9 @@ const SOUND_ID_MAPPING = [
     'note.banjo',
     'note.pling',
 ];
+const BOSS_BAR_ID = 627752937;
 const playSoundTaskList = [];
+const playingPlayers = {};
 function buildSoundPacket(position, instrumentList, note) {
     const bs = new BinaryStream();
     const { instrument, velocity, pitch } = note;
@@ -3947,17 +4520,60 @@ class LLBasePlayer extends BasePlayer {
     }
     constructor(song, options) {
         super(song, options);
+        this.lastBossBarPercent = -1;
         const { playerXuid } = options || {};
         if (!playerXuid)
             throw new Error('playerXuid is required');
         this.playerXuid = playerXuid;
+    }
+    async tickPlay() {
+        if (!this.refreshPlayerObjCache()) {
+            await this.stopPlayTask();
+            return;
+        }
+        await super.tickPlay();
+        if (this.playing)
+            this.updateBossBar();
+    }
+    async stopPlay(resetProgress) {
+        await super.stopPlay(resetProgress);
+        this.updateBossBar();
+    }
+    refreshPlayerObjCache() {
+        this.mcPlayer = mc.getPlayer(this.playerXuid) ?? undefined;
+        return this.mcPlayer;
+    }
+    updateBossBar() {
+        if (!this.playing) {
+            this.lastBossBarPercent = -1;
+            if (this.ended || this.playedTicks <= 0) {
+                this.mcPlayer?.removeBossBar(BOSS_BAR_ID);
+                return;
+            }
+        }
+        const { songName, songAuthor, originalAuthor, songLength } = this.song.header;
+        const percent = Math.round((this.playedTicks / songLength) * 100);
+        if (this.playing) {
+            if (percent === this.lastBossBarPercent)
+                return;
+            this.lastBossBarPercent = percent;
+        }
+        const playMark = this.playing ? '§a⏵' : '§6⏸';
+        let songDisplayName = `§b${songName}`;
+        const displayAuthor = originalAuthor || songAuthor;
+        if (displayAuthor)
+            songDisplayName += `§f - §a${displayAuthor}`;
+        const title = `${playMark} §dNBSPlayer §7| ${songDisplayName}`;
+        const bossBarColor = this.playing ? 3 : 4;
+        this.mcPlayer?.setBossBar(BOSS_BAR_ID, title, percent, bossBarColor);
     }
 }
 class TickingBasedPlayer extends LLBasePlayer {
     async playNote(note) {
         playSoundTaskList.push({
             note,
-            player: this,
+            mcPlayer: this.mcPlayer,
+            nbsPlayer: this,
             stopPlayTask: this.stopPlayTask.bind(this),
         });
     }
@@ -3967,6 +4583,9 @@ class TickingBasedPlayer extends LLBasePlayer {
     async stopPlayTask() {
         this.playTask?.();
         this.playTask = undefined;
+        if ((this.ended || this.playedTicks <= 0) &&
+            playingPlayers[this.playerXuid] === this)
+            delete playingPlayers[this.playerXuid];
     }
 }
 let _player;
@@ -3976,7 +4595,7 @@ let _player;
             return;
         const playerCache = {};
         const once = async (task) => {
-            const { note, player: nbsPlayer, stopPlayTask } = task;
+            const { note, nbsPlayer, stopPlayTask } = task;
             const { instruments, playerXuid } = nbsPlayer;
             const stop = async () => {
                 await stopPlayTask();
@@ -3992,7 +4611,7 @@ let _player;
                 player.sendPacket(buildSoundPacket(player.pos, instruments, note));
             }
             catch (e) {
-                logger.error(formatError_1(e));
+                logger.error(formatError(e));
                 return stop();
             }
             return undefined;
@@ -4020,36 +4639,86 @@ class PlaylistFile {
         finally {
             f.close();
         }
-        return parse(b);
+        const r = await parse(b);
+        if (!r.header.songName)
+            r.header.songName = this.displayString;
+        return r;
     }
 }
-
-logger.setTitle(PLUGIN_NAME);
-let activatingPlayer;
-async function testStartPlay(player) {
-    const file = await new PlaylistFile(`${dataPath}/test.nbs`).read();
-    const songPlayer = new Player(file, { playerXuid: player.xuid });
-    activatingPlayer = songPlayer;
-    await songPlayer.play();
+async function play(player, filename) {
+    let song;
+    try {
+        song = await new PlaylistFile(`${NBS_PATH}/${filename}`).read();
+    }
+    catch (e) {
+        player.tell(`读取文件失败\n§c${formatError(e)}`);
+        return;
+    }
+    if (playingPlayers[player.xuid])
+        await playingPlayers[player.xuid].stop();
+    const p = new Player(song, { playerXuid: player.xuid });
+    await p.play();
+    playingPlayers[player.xuid] = p;
 }
-mc.listen('onServerStarted', () => {
-    const testPlayCmd = mc.newCommand('nbstestplay', 'test', PermType.Any);
-    testPlayCmd.overload();
-    testPlayCmd.setCallback((_, { player }) => {
+
+const InnerFormClose = Symbol(`${PLUGIN_NAME}_InnerFormClose`);
+async function nbsList(player) {
+    const files = file.getFilesList(NBS_PATH).filter((x) => x.endsWith('.nbs'));
+    const form = new SimpleFormEx(files);
+    form.title = PLUGIN_NAME;
+    form.canTurnPage = true;
+    form.canJumpPage = true;
+    form.hasSearchButton = true;
+    const res = await form.sendAsync(player);
+    if (res === FormClose)
+        return InnerFormClose;
+    catchAndLog(play(player, res));
+    return undefined;
+}
+async function playControl(player) {
+    const nbsPlayer = playingPlayers[player.xuid];
+    if (!nbsPlayer) {
+        await sendModalFormAsync(player, PLUGIN_NAME, '没有正在播放的音乐');
+        return InnerFormClose;
+    }
+    const { playing } = nbsPlayer;
+    const form = new SimpleFormOperational(PLUGIN_NAME, '', [
+        {
+            text: playing ? '⏸️ 暂停' : '▶️ 播放',
+            operation: () => catchAndLog(playing
+                ? playingPlayers[player.xuid].pause()
+                : playingPlayers[player.xuid].resume()),
+        },
+        {
+            text: '⏹️ 停止',
+            operation: () => catchAndLog(playingPlayers[player.xuid].stop()),
+        },
+    ]);
+    if ((await form.sendAsync(player)) === FormClose)
+        return InnerFormClose;
+    return undefined;
+}
+async function main(player) {
+    const form = new SimpleFormOperational(PLUGIN_NAME, '', [
+        { text: '选择文件', operation: () => catchAndLog(nbsList(player)) },
+        { text: '播放控制', operation: () => catchAndLog(playControl(player)) },
+    ]);
+    if ((await form.sendAsync(player)) === InnerFormClose)
+        catchAndLog(main(player));
+}
+
+function init() {
+    const cmd = mc.newCommand('nbs', PLUGIN_NAME, PermType.Any);
+    cmd.setAlias('nbsplayer');
+    cmd.overload();
+    cmd.setCallback((_, { player }) => {
         if (!player)
             return false;
-        testStartPlay(player);
+        catchAndLog(main(player));
         return true;
     });
-    testPlayCmd.setup();
-    const testStopCmd = mc.newCommand('nbsteststop', 'test', PermType.Any);
-    testStopCmd.overload();
-    testStopCmd.setCallback(() => {
-        if (activatingPlayer)
-            activatingPlayer.stop();
-        activatingPlayer = undefined;
-        return true;
-    });
-    testStopCmd.setup();
-});
+    cmd.setup();
+}
+mc.listen('onServerStarted', init);
+
 ll.registerPlugin(PLUGIN_NAME, PLUGIN_DESCRIPTION, PLUGIN_VERSION, PLUGIN_EXTRA);

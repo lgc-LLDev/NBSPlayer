@@ -9,8 +9,8 @@ export default [
     input: './src/index.ts',
     output: [
       {
-        name: 'nbsPlay',
-        file: './dist/index.js',
+        name: 'NBSPlayer',
+        file: './dist/NBSPlayer.js',
         format: 'cjs',
       },
     ],

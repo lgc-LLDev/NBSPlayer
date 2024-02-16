@@ -10,6 +10,7 @@ import {
   parse,
 } from 'nbs-play';
 import { ticker } from './utils';
+import { NBS_PATH } from './const';
 
 export const SOUND_ID_MAPPING = [
   'note.harp',
@@ -29,6 +30,7 @@ export const SOUND_ID_MAPPING = [
   'note.banjo',
   'note.pling',
 ];
+export const BOSS_BAR_ID = 627752937; // NbsPlayer九键(xd
 const TICKING_BASED = true;
 
 export type PlayerOptions = {
@@ -37,10 +39,13 @@ export type PlayerOptions = {
 
 type PlaySoundTaskType = {
   note: IPlayNote;
-  player: TickingBasedPlayer;
+  mcPlayer: LLSE_Player;
+  nbsPlayer: TickingBasedPlayer;
   stopPlayTask: () => Promise<any>;
 };
 const playSoundTaskList: PlaySoundTaskType[] = [];
+
+export const playingPlayers: Record<string, Player | Playlist> = {};
 
 export function buildSoundPacket(
   position: FloatPos,
@@ -76,11 +81,62 @@ export abstract class LLBasePlayer extends BasePlayer {
 
   public readonly playerXuid: string;
 
+  protected mcPlayer?: LLSE_Player;
+
+  protected lastBossBarPercent = -1;
+
   constructor(song: ISong, options?: PlayerOptions) {
     super(song, options);
     const { playerXuid } = options || {};
     if (!playerXuid) throw new Error('playerXuid is required');
     this.playerXuid = playerXuid;
+  }
+
+  protected override async tickPlay(): Promise<void> {
+    if (!this.refreshPlayerObjCache()) {
+      await this.stopPlayTask();
+      return;
+    }
+    await super.tickPlay();
+    if (this.playing) this.updateBossBar();
+  }
+
+  public override async stopPlay(resetProgress?: boolean): Promise<void> {
+    await super.stopPlay(resetProgress);
+    this.updateBossBar();
+  }
+
+  protected refreshPlayerObjCache(): LLSE_Player | undefined {
+    this.mcPlayer = mc.getPlayer(this.playerXuid) ?? undefined;
+    return this.mcPlayer;
+  }
+
+  protected updateBossBar() {
+    if (!this.playing) {
+      this.lastBossBarPercent = -1;
+      if (this.ended || this.playedTicks <= 0) {
+        this.mcPlayer?.removeBossBar(BOSS_BAR_ID);
+        return;
+      }
+    }
+
+    const { songName, songAuthor, originalAuthor, songLength } =
+      this.song.header;
+
+    const percent = Math.round((this.playedTicks / songLength) * 100);
+    if (this.playing) {
+      if (percent === this.lastBossBarPercent) return;
+      this.lastBossBarPercent = percent;
+    }
+
+    const playMark = this.playing ? '§a⏵' : '§6⏸';
+    let songDisplayName = `§b${songName}`;
+    const displayAuthor = originalAuthor || songAuthor;
+    if (displayAuthor) songDisplayName += `§f - §a${displayAuthor}`;
+    const title = `${playMark} §dNBSPlayer §7| ${songDisplayName}`;
+    const bossBarColor = this.playing ? 3 : 4; // green : yellow
+
+    this.mcPlayer?.setBossBar(BOSS_BAR_ID, title, percent, bossBarColor);
   }
 }
 
@@ -90,7 +146,8 @@ class TickingBasedPlayer extends LLBasePlayer {
   override async playNote(note: IPlayNote): Promise<any> {
     playSoundTaskList.push({
       note,
-      player: this,
+      mcPlayer: this.mcPlayer!,
+      nbsPlayer: this,
       stopPlayTask: this.stopPlayTask.bind(this),
     });
   }
@@ -102,28 +159,23 @@ class TickingBasedPlayer extends LLBasePlayer {
   protected override async stopPlayTask(): Promise<void> {
     this.playTask?.();
     this.playTask = undefined;
+    if (
+      (this.ended || this.playedTicks <= 0) &&
+      playingPlayers[this.playerXuid] === this
+    )
+      delete playingPlayers[this.playerXuid];
   }
 }
 
 class TimerBasedPlayer extends LLBasePlayer {
-  private playerObj?: LLSE_Player;
-
   override async playNote(note: IPlayNote): Promise<any> {
     try {
-      this.playerObj?.sendPacket(
-        buildSoundPacket(this.playerObj?.pos, this.instruments, note)
+      this.mcPlayer?.sendPacket(
+        buildSoundPacket(this.mcPlayer?.pos, this.instruments, note)
       );
     } catch (e) {
       logger.error(formatError(e));
     }
-  }
-
-  protected override async tickPlay(): Promise<void> {
-    if (this.playing) {
-      this.playerObj = mc.getPlayer(this.playerXuid);
-      if (!this.playerObj) this.stopPlayTask();
-    }
-    await super.tickPlay();
   }
 }
 
@@ -133,7 +185,7 @@ if (TICKING_BASED) {
     if (!playSoundTaskList.length) return;
     const playerCache: Record<string, LLSE_Player> = {};
     const once = async (task: PlaySoundTaskType) => {
-      const { note, player: nbsPlayer, stopPlayTask } = task;
+      const { note, nbsPlayer, stopPlayTask } = task;
       const { instruments, playerXuid } = nbsPlayer;
       const stop = async () => {
         await stopPlayTask();
@@ -184,7 +236,9 @@ export class PlaylistFile implements IPlaylistFile {
     } finally {
       f.close();
     }
-    return parse(b);
+    const r = await parse(b);
+    if (!r.header.songName) r.header.songName = this.displayString;
+    return r;
   }
 }
 
@@ -201,4 +255,18 @@ export class Playlist extends BasePlaylist<PlaylistFile, Player> {
   async createPlayer(song: ISong): Promise<Player> {
     return new Player(song, { playerXuid: this.playerXuid });
   }
+}
+
+export async function play(player: LLSE_Player, filename: string) {
+  let song: ISong;
+  try {
+    song = await new PlaylistFile(`${NBS_PATH}/${filename}`).read();
+  } catch (e) {
+    player.tell(`读取文件失败\n§c${formatError(e)}`);
+    return;
+  }
+  if (playingPlayers[player.xuid]) await playingPlayers[player.xuid].stop();
+  const p = new Player(song, { playerXuid: player.xuid });
+  await p.play();
+  playingPlayers[player.xuid] = p;
 }

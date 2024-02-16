@@ -1,3 +1,12 @@
+import { formatError } from 'form-api-ex';
+
+export function catchAndLog<T>(promise: Promise<T>): Promise<T> {
+  return promise.catch((e) => {
+    logger.error(formatError(e));
+    return e;
+  });
+}
+
 export const ticker = new (class {
   private callbacks: (() => any)[] = [];
 
@@ -5,7 +14,7 @@ export const ticker = new (class {
 
   constructor() {
     mc.listen('onTick', () => {
-      this.trigger();
+      catchAndLog(this.trigger());
     });
   }
 

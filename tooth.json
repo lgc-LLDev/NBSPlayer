@@ -12,12 +12,12 @@
   "files": {
     "place": [
       {
-        "src": "nbs-player/dist/index.js",
-        "dest": "plugins/NbsPlayer/index.js"
+        "src": "nbs-player/dist/NBSPlayer.js",
+        "dest": "plugins/NBSPlayer/NBSPlayer.js"
       },
       {
         "src": "nbs-player/manifest.json",
-        "dest": "plugins/NbsPlayer/manifest.json"
+        "dest": "plugins/NBSPlayer/manifest.json"
       }
     ]
   }
