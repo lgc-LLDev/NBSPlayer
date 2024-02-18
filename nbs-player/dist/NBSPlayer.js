@@ -4432,6 +4432,12 @@ class BasePlayer extends PlayerEventTarget {
     }
 }
 
+async function sleep(ms) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
+}
+
 var LoopType;
 (function (LoopType) {
     /** 顺序播放 */
@@ -4443,19 +4449,265 @@ var LoopType;
     /** 随机播放 */
     LoopType[LoopType["Shuffle"] = 3] = "Shuffle";
 })(LoopType || (LoopType = {}));
+class BasePlaylist extends PlayerEventTarget {
+    constructor(fileList = [], options) {
+        super();
+        this.fileList = fileList;
+        this.delayTime = 1000;
+        this.loopType = LoopType.List;
+        /** 是否正在播放，内部用 */
+        this.isPlaying = false;
+        /** 是否正在暂停，内部用 */
+        this.isPausing = false;
+        this.playingIndex = -1;
+        this.playTask = Promise.resolve();
+    }
+    get currentPlaylist() {
+        return this.loopType === LoopType.Shuffle
+            ? this.shuffledList ?? this.newShuffledList()
+            : this.fileList;
+    }
+    get length() {
+        return this.currentPlaylist.length;
+    }
+    get playing() {
+        return this.isPlaying;
+    }
+    getPlayingIndex() {
+        return this.playingIndex;
+    }
+    getLoopType() {
+        return this.loopType;
+    }
+    getPlaying() {
+        return this.currentPlaylist[this.playingIndex];
+    }
+    getPlayingPlayer() {
+        return this.playingPlayer;
+    }
+    getPlaylist() {
+        return this.currentPlaylist;
+    }
+    async addFile(file, index = -1) {
+        const playingFile = this.getPlaying();
+        if (index < 0)
+            this.fileList.push(file);
+        else
+            this.fileList.splice(index, 0, file);
+        this.newShuffledList();
+        this.playingIndex = this.currentPlaylist.indexOf(playingFile);
+        this.dispatchEvent(new PlayerEvent('change', { list: this.currentPlaylist }));
+    }
+    async removeFile(index) {
+        const playingFile = this.getPlaying();
+        this.fileList.splice(index, 1);
+        this.newShuffledList();
+        const newIndex = this.currentPlaylist.indexOf(playingFile);
+        if (newIndex !== -1)
+            this.playingIndex = newIndex;
+        else
+            this.flush();
+        this.dispatchEvent(new PlayerEvent('change', { list: this.currentPlaylist }));
+    }
+    async changeIndex(old, now) {
+        const playingFile = this.getPlaying();
+        this.currentPlaylist.splice(old, 1);
+        this.currentPlaylist.splice(now, 0, this.currentPlaylist[old]);
+        this.playingIndex = this.currentPlaylist.indexOf(playingFile);
+        this.dispatchEvent(new PlayerEvent('change', { list: this.currentPlaylist }));
+    }
+    async clear() {
+        this.fileList = [];
+        this.shuffledList = undefined;
+        this.playingIndex = 0;
+        if (this.isPlaying)
+            this.dispatchEvent(new PlayerEvent('stop'));
+        await this.stopInner();
+        this.dispatchEvent(new PlayerEvent('change', { list: [] }));
+    }
+    newShuffledList() {
+        this.shuffledList = [...this.fileList];
+        this.shuffledList.sort(() => Math.random() - 0.5);
+        return this.shuffledList;
+    }
+    async switchNext() {
+        if (this.playingIndex >= this.length - 1) {
+            switch (this.loopType) {
+                case LoopType.Single:
+                    break;
+                case LoopType.List:
+                    this.playingIndex = 0;
+                    break;
+                case LoopType.Shuffle:
+                    this.newShuffledList();
+                    this.playingIndex = 0;
+                    break;
+                default: // None
+                    throw new Error('No next');
+            }
+        }
+        else {
+            this.playingIndex += 1;
+        }
+        this.dispatchEvent(new PlayerEvent('switch', { file: this.getPlaying() }));
+    }
+    async switchPrevious() {
+        if (this.playingIndex > 0) {
+            this.playingIndex -= 1;
+        }
+        else if (this.loopType === LoopType.Shuffle ||
+            this.loopType === LoopType.List) {
+            this.playingIndex = this.length - 1;
+        }
+        else {
+            throw new Error('No previous');
+        }
+        this.dispatchEvent(new PlayerEvent('switch', { file: this.getPlaying() }));
+    }
+    async stopInner() {
+        await this.stopFunc?.();
+        await this.playTask;
+    }
+    async flush() {
+        await this.stopInner();
+        if (!this.length || this.playingIndex === -1)
+            return;
+        this.playTask.then(async () => {
+            try {
+                const file = this.getPlaying();
+                const song = await file.read();
+                const player = await this.createPlayer(song);
+                this.playingPlayer = player;
+            }
+            catch (e) {
+                this.dispatchEvent(new PlayerEvent('error', { error: e }));
+                this.playTask
+                    .then(() => sleep(this.delayTime))
+                    .then(this.next.bind(this));
+                return;
+            }
+            this.isPlaying = true;
+            await this.playingPlayer.play();
+            await new Promise((resolve) => {
+                const clearState = async () => {
+                    this.stopFunc = undefined;
+                    if (this.playingPlayer?.playing)
+                        await this.playingPlayer?.stop();
+                    this.playingPlayer = undefined;
+                };
+                this.playingPlayer?.addEventListener('tick', (e) => {
+                    if (e.target !== this.playingPlayer)
+                        return;
+                    this.dispatchEvent(new PlayerEvent('tick', { ...e.params, player: e.target }));
+                });
+                this.playingPlayer?.addEventListener('stop', async () => {
+                    if (this.isPausing)
+                        return;
+                    await clearState();
+                    resolve(undefined);
+                });
+                this.stopFunc = async () => {
+                    this.isPlaying = false;
+                    await clearState();
+                    resolve(undefined);
+                };
+            });
+            if (!this.isPlaying)
+                return;
+            if (this.loopType === LoopType.Single) {
+                this.playTask.then(this.flush.bind(this));
+                return;
+            }
+            this.playTask
+                .then(() => sleep(this.delayTime))
+                .then(async () => {
+                try {
+                    await this.next();
+                }
+                catch (e) {
+                    // no next
+                    this.isPlaying = false;
+                    this.playingIndex = -1;
+                    this.dispatchEvent(new PlayerEvent('switch', { file: undefined }));
+                    this.dispatchEvent(new PlayerEvent('stop'));
+                }
+            });
+        });
+    }
+    switchLoopType(loopType) {
+        if (this.loopType === loopType)
+            return;
+        const oldLoopType = this.loopType;
+        this.loopType = loopType;
+        this.dispatchEvent(new PlayerEvent('loopChange', { loopType }));
+        if (loopType === LoopType.Shuffle) {
+            this.newShuffledList();
+            if (this.playingIndex !== -1)
+                this.playingIndex = this.currentPlaylist.indexOf(this.fileList[this.playingIndex]);
+            this.dispatchEvent(new PlayerEvent('change', { list: this.currentPlaylist }));
+        }
+        else if (oldLoopType === LoopType.Shuffle) {
+            if (this.playingIndex !== -1 && this.shuffledList)
+                this.playingIndex = this.currentPlaylist.indexOf(this.shuffledList[this.playingIndex]);
+            this.dispatchEvent(new PlayerEvent('change', { list: this.currentPlaylist }));
+        }
+    }
+    async play() {
+        if (!this.length)
+            throw new Error('Playlist is empty');
+        if (this.playingIndex === -1) {
+            this.playingIndex = 0;
+            this.dispatchEvent(new PlayerEvent('switch', { file: this.getPlaying() }));
+        }
+        this.isPausing = false;
+        await this.flush();
+        this.dispatchEvent(new PlayerEvent('play'));
+    }
+    async pause() {
+        if (!this.playingPlayer)
+            throw new Error('Not playing');
+        this.isPausing = true;
+        await this.playingPlayer.pause();
+        this.dispatchEvent(new PlayerEvent('pause'));
+    }
+    async resume() {
+        if (!this.playingPlayer)
+            throw new Error('Not playing');
+        this.isPausing = false;
+        await this.playingPlayer.resume();
+        this.dispatchEvent(new PlayerEvent('resume'));
+    }
+    async stop() {
+        this.isPausing = false;
+        await this.stopInner();
+        this.dispatchEvent(new PlayerEvent('stop'));
+    }
+    async next() {
+        await this.switchNext();
+        await this.flush();
+    }
+    async previous() {
+        await this.switchPrevious();
+        await this.flush();
+    }
+    async switchTo(index) {
+        if (index < 0 || index >= this.length)
+            throw new Error(`Index out of range: ${index}`);
+        this.playingIndex = index;
+        this.dispatchEvent(new PlayerEvent('switch', { file: this.getPlaying() }));
+        await this.flush();
+    }
+}
 
-function catchAndLog(promise) {
-    return promise.catch((e) => {
-        logger.error(formatError(e));
-        return e;
-    });
+function logErr(err) {
+    logger.error(formatError(err));
 }
 const ticker = new (class {
     constructor() {
         this.callbacks = [];
         this.calling = false;
         mc.listen('onTick', () => {
-            catchAndLog(this.trigger());
+            this.trigger().catch(logErr);
         });
     }
     add(callback) {
@@ -4583,9 +4835,6 @@ class TickingBasedPlayer extends LLBasePlayer {
     async stopPlayTask() {
         this.playTask?.();
         this.playTask = undefined;
-        if ((this.ended || this.playedTicks <= 0) &&
-            playingPlayers[this.playerXuid] === this)
-            delete playingPlayers[this.playerXuid];
     }
 }
 let _player;
@@ -4645,24 +4894,35 @@ class PlaylistFile {
         return r;
     }
 }
+class Playlist extends BasePlaylist {
+    constructor(fileList, options) {
+        super(fileList, options);
+        const { playerXuid } = options || {};
+        if (!playerXuid)
+            throw new Error('playerXuid is required');
+        this.playerXuid = playerXuid;
+        this.addEventListener('error', ({ params: { error } }) => {
+            mc.getPlayer(this.playerXuid).tell(`§c出现了一个错误\n${formatError(error)}`);
+        });
+    }
+    async createPlayer(song) {
+        return new Player(song, { playerXuid: this.playerXuid });
+    }
+}
 async function play(player, filename) {
-    let song;
-    try {
-        song = await new PlaylistFile(`${NBS_PATH}/${filename}`).read();
+    let playlist = playingPlayers[player.xuid];
+    if (!playlist) {
+        playlist = new Playlist([], { playerXuid: player.xuid });
+        playingPlayers[player.xuid] = playlist;
     }
-    catch (e) {
-        player.tell(`读取文件失败\n§c${formatError(e)}`);
-        return;
+    else {
+        await playlist.clear();
     }
-    if (playingPlayers[player.xuid])
-        await playingPlayers[player.xuid].stop();
-    const p = new Player(song, { playerXuid: player.xuid });
-    await p.play();
-    playingPlayers[player.xuid] = p;
+    await playlist.addFile(new PlaylistFile(`${NBS_PATH}/${filename}`));
+    await playlist.play();
 }
 
-const InnerFormClose = Symbol(`${PLUGIN_NAME}_InnerFormClose`);
-async function nbsList(player) {
+async function nbsList(player, parent) {
     const files = file.getFilesList(NBS_PATH).filter((x) => x.endsWith('.nbs'));
     const form = new SimpleFormEx(files);
     form.title = PLUGIN_NAME;
@@ -4670,41 +4930,62 @@ async function nbsList(player) {
     form.canJumpPage = true;
     form.hasSearchButton = true;
     const res = await form.sendAsync(player);
-    if (res === FormClose)
-        return InnerFormClose;
-    catchAndLog(play(player, res));
-    return undefined;
+    if (res === FormClose) {
+        parent?.(player).catch(logErr);
+        return;
+    }
+    play(player, res).catch(logErr);
 }
-async function playControl(player) {
+async function playControl(player, parent) {
     const nbsPlayer = playingPlayers[player.xuid];
     if (!nbsPlayer) {
-        await sendModalFormAsync(player, PLUGIN_NAME, '没有正在播放的音乐');
-        return InnerFormClose;
+        sendModalFormAsync(player, PLUGIN_NAME, '没有正在播放的音乐')
+            .then(() => parent?.(player))
+            .catch(logErr);
+        return;
     }
     const { playing } = nbsPlayer;
-    const form = new SimpleFormOperational(PLUGIN_NAME, '', [
+    new SimpleFormOperational(PLUGIN_NAME, '', [
         {
             text: playing ? '⏸️ 暂停' : '▶️ 播放',
-            operation: () => catchAndLog(playing
-                ? playingPlayers[player.xuid].pause()
-                : playingPlayers[player.xuid].resume()),
+            operation: () => {
+                const nbsPlayerNow = playingPlayers[player.xuid];
+                ((playing ? nbsPlayerNow?.pause() : nbsPlayerNow?.resume()) ??
+                    Promise.resolve())
+                    .then(() => parent?.(player))
+                    .catch(logErr);
+            },
         },
         {
             text: '⏹️ 停止',
-            operation: () => catchAndLog(playingPlayers[player.xuid].stop()),
+            operation: () => {
+                nbsPlayer
+                    .stop()
+                    .then(() => parent?.(player))
+                    .catch(logErr);
+            },
         },
-    ]);
-    if ((await form.sendAsync(player)) === FormClose)
-        return InnerFormClose;
-    return undefined;
+    ])
+        .sendAsync(player)
+        .catch(logErr);
 }
 async function main(player) {
-    const form = new SimpleFormOperational(PLUGIN_NAME, '', [
-        { text: '选择文件', operation: () => catchAndLog(nbsList(player)) },
-        { text: '播放控制', operation: () => catchAndLog(playControl(player)) },
-    ]);
-    if ((await form.sendAsync(player)) === InnerFormClose)
-        catchAndLog(main(player));
+    new SimpleFormOperational(PLUGIN_NAME, '', [
+        {
+            text: '选择文件',
+            operation: () => {
+                nbsList(player, main).then(logErr);
+            },
+        },
+        {
+            text: '播放控制',
+            operation: () => {
+                playControl(player, main).then(logErr);
+            },
+        },
+    ])
+        .sendAsync(player)
+        .catch(logErr);
 }
 
 function init() {
@@ -4714,7 +4995,7 @@ function init() {
     cmd.setCallback((_, { player }) => {
         if (!player)
             return false;
-        catchAndLog(main(player));
+        main(player).catch(logErr);
         return true;
     });
     cmd.setup();
