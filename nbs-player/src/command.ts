@@ -1,6 +1,6 @@
 import { PLUGIN_NAME } from './const';
 import { main as mainGui } from './gui';
-import { catchAndLog } from './utils';
+import { logErr } from './utils';
 
 function init() {
   const cmd = mc.newCommand('nbs', PLUGIN_NAME, PermType.Any);
@@ -10,7 +10,7 @@ function init() {
 
   cmd.setCallback((_, { player }) => {
     if (!player) return false;
-    catchAndLog(mainGui(player));
+    mainGui(player).catch(logErr);
     return true;
   });
 

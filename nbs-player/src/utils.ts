@@ -1,10 +1,7 @@
 import { formatError } from 'form-api-ex';
 
-export function catchAndLog<T>(promise: Promise<T>): Promise<T> {
-  return promise.catch((e) => {
-    logger.error(formatError(e));
-    return e;
-  });
+export function logErr(err: any) {
+  logger.error(formatError(err));
 }
 
 export const ticker = new (class {
@@ -14,7 +11,7 @@ export const ticker = new (class {
 
   constructor() {
     mc.listen('onTick', () => {
-      catchAndLog(this.trigger());
+      this.trigger().catch(logErr);
     });
   }
 
