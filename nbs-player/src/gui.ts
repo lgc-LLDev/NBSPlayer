@@ -44,7 +44,11 @@ export async function playControl(
     {
       text: playing ? '⏸️ 暂停' : '▶️ 播放',
       operation: () => {
-        (playing ? nbsPlayer.pause : nbsPlayer.resume)()
+        const nbsPlayerNow = playingPlayers[player.xuid]; // should re-get here because it may change
+        (
+          (playing ? nbsPlayerNow?.pause() : nbsPlayerNow?.resume()) ??
+          Promise.resolve()
+        )
           .then(() => parent?.(player))
           .catch(logErr);
       },

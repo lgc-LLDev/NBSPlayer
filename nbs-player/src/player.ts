@@ -45,7 +45,7 @@ type PlaySoundTaskType = {
 };
 const playSoundTaskList: PlaySoundTaskType[] = [];
 
-export const playingPlayers: Record<string, Player | Playlist> = {};
+export const playingPlayers: Record<string, Playlist> = {};
 
 export function buildSoundPacket(
   position: FloatPos,
@@ -159,11 +159,6 @@ class TickingBasedPlayer extends LLBasePlayer {
   protected override async stopPlayTask(): Promise<void> {
     this.playTask?.();
     this.playTask = undefined;
-    if (
-      (this.ended || this.playedTicks <= 0) &&
-      playingPlayers[this.playerXuid] === this
-    )
-      delete playingPlayers[this.playerXuid];
   }
 }
 
@@ -250,6 +245,12 @@ export class Playlist extends BasePlaylist<PlaylistFile, Player> {
     const { playerXuid } = options || {};
     if (!playerXuid) throw new Error('playerXuid is required');
     this.playerXuid = playerXuid;
+
+    this.addEventListener('error', ({ params: { error } }) => {
+      mc.getPlayer(this.playerXuid).tell(
+        `§c出现了一个错误\n${formatError(error)}`
+      );
+    });
   }
 
   async createPlayer(song: ISong): Promise<Player> {
@@ -258,15 +259,13 @@ export class Playlist extends BasePlaylist<PlaylistFile, Player> {
 }
 
 export async function play(player: LLSE_Player, filename: string) {
-  let song: ISong;
-  try {
-    song = await new PlaylistFile(`${NBS_PATH}/${filename}`).read();
-  } catch (e) {
-    player.tell(`读取文件失败\n§c${formatError(e)}`);
-    return;
+  let playlist = playingPlayers[player.xuid];
+  if (!playlist) {
+    playlist = new Playlist([], { playerXuid: player.xuid });
+    playingPlayers[player.xuid] = playlist;
+  } else {
+    await playlist.clear();
   }
-  if (playingPlayers[player.xuid]) await playingPlayers[player.xuid].stop();
-  const p = new Player(song, { playerXuid: player.xuid });
-  await p.play();
-  playingPlayers[player.xuid] = p;
+  await playlist.addFile(new PlaylistFile(`${NBS_PATH}/${filename}`));
+  await playlist.play();
 }
