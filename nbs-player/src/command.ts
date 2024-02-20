@@ -1,5 +1,5 @@
 import { PLUGIN_NAME } from './const';
-import { main as mainGui } from './gui';
+import { mainForm } from './gui';
 import { logErr } from './utils';
 
 function init() {
@@ -10,7 +10,7 @@ function init() {
 
   cmd.setCallback((_, { player }) => {
     if (!player) return false;
-    mainGui(player).catch(logErr);
+    mainForm(player).catch(logErr);
     return true;
   });
 

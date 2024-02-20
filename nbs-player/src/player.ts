@@ -3,12 +3,13 @@ import {
   BUILTIN_INSTRUMENTS,
   BasePlayer,
   BasePlaylist,
+  BasePlaylistFile,
   IInstrument,
   IPlayNote,
-  IPlaylistFile,
   ISong,
   parse,
 } from 'nbs-play';
+
 import { ticker } from './utils';
 import { NBS_PATH } from './const';
 
@@ -45,7 +46,7 @@ type PlaySoundTaskType = {
 };
 const playSoundTaskList: PlaySoundTaskType[] = [];
 
-export const playingPlayers: Record<string, Playlist> = {};
+export const playerPlaylists: Record<string, Playlist> = {};
 
 export function buildSoundPacket(
   position: FloatPos,
@@ -141,7 +142,7 @@ export abstract class LLBasePlayer extends BasePlayer {
 }
 
 class TickingBasedPlayer extends LLBasePlayer {
-  override playTask?: () => any;
+  override _playTask?: () => any;
 
   override async playNote(note: IPlayNote): Promise<any> {
     playSoundTaskList.push({
@@ -153,12 +154,12 @@ class TickingBasedPlayer extends LLBasePlayer {
   }
 
   protected override async startPlayTask(): Promise<void> {
-    this.playTask = ticker.add(this.tickPlay.bind(this));
+    this._playTask = ticker.add(this.tickPlay.bind(this));
   }
 
   protected override async stopPlayTask(): Promise<void> {
-    this.playTask?.();
-    this.playTask = undefined;
+    this._playTask?.();
+    this._playTask = undefined;
   }
 }
 
@@ -214,17 +215,10 @@ export const Player = _player as typeof TICKING_BASED extends true
   ? typeof TickingBasedPlayer
   : typeof TimerBasedPlayer;
 
-export class PlaylistFile implements IPlaylistFile {
-  constructor(
-    public readonly url: string,
-    public readonly displayString: string = ''
-  ) {
-    if (!displayString) this.displayString = url.split('/').pop()!;
-  }
-
+export class PlaylistFile extends BasePlaylistFile {
   public async read(): Promise<ISong> {
     // eslint-disable-next-line new-cap
-    const f = new file(this.url, file.ReadMode, true);
+    const f = new file(`${NBS_PATH}/${this.url}`, file.ReadMode, true);
     let b;
     try {
       b = f.readAllSync() as ByteBuffer;
@@ -247,6 +241,7 @@ export class Playlist extends BasePlaylist<PlaylistFile, Player> {
     this.playerXuid = playerXuid;
 
     this.addEventListener('error', ({ params: { error } }) => {
+      logger.error(formatError(error));
       mc.getPlayer(this.playerXuid).tell(
         `§c出现了一个错误\n${formatError(error)}`
       );
@@ -258,14 +253,47 @@ export class Playlist extends BasePlaylist<PlaylistFile, Player> {
   }
 }
 
-export async function play(player: LLSE_Player, filename: string) {
-  let playlist = playingPlayers[player.xuid];
+export function ensurePlaylist(player: LLSE_Player) {
+  let playlist = playerPlaylists[player.xuid];
   if (!playlist) {
     playlist = new Playlist([], { playerXuid: player.xuid });
-    playingPlayers[player.xuid] = playlist;
-  } else {
-    await playlist.clear();
+    playerPlaylists[player.xuid] = playlist;
   }
-  await playlist.addFile(new PlaylistFile(`${NBS_PATH}/${filename}`));
-  await playlist.play();
+  return playlist;
+}
+
+export async function replacePlaylist(
+  player: LLSE_Player,
+  filenames: string[],
+  targetFilename?: string
+) {
+  if (targetFilename && !filenames.includes(targetFilename))
+    throw Error(`${targetFilename} should present in filenames`);
+
+  const playlist = ensurePlaylist(player);
+  const files = filenames.map((x) => new PlaylistFile(x));
+  await playlist.reset(files);
+
+  if (targetFilename)
+    await playlist.switchTo(
+      playlist.currentFileList.findIndex((x) => x.url === targetFilename)
+    );
+  else await playlist.play();
+}
+
+export async function playAfter(
+  player: LLSE_Player,
+  filename: string,
+  playNow = false
+) {
+  const playlist = ensurePlaylist(player);
+  const oldPlayingFilename =
+    playlist.currentFileList[playlist.playingIndex]?.displayString;
+  if (playNow && oldPlayingFilename !== filename) {
+    await playlist.addFile(
+      new PlaylistFile(filename),
+      playlist.playingIndex + 1
+    );
+    await playlist.next();
+  }
 }

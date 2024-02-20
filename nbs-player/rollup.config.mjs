@@ -14,6 +14,12 @@ export default [
         format: 'cjs',
       },
     ],
-    plugins: [json(), nodeResolve(), commonjs(), typescript() /* , terser() */],
+    plugins: [
+      json(),
+      nodeResolve(),
+      commonjs(),
+      typescript(),
+      /* terser(), */
+    ],
   },
 ];
