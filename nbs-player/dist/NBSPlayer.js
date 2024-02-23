@@ -1894,6 +1894,7 @@ async function fileListFileForm(fileList, filename, player, parent) {
         },
     ])
         .sendAsync(player)
+        .then((res) => res === FormClose && parent?.())
         .catch(logErr);
 }
 async function fileListForm(player, parent) {

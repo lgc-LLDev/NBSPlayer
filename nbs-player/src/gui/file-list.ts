@@ -33,6 +33,7 @@ export async function fileListFileForm(
     },
   ])
     .sendAsync(player)
+    .then((res) => res === FormClose && parent?.())
     .catch(logErr);
 }
 

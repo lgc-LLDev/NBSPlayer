@@ -4,10 +4,6 @@
 
 BDS 中的 NBS 音乐播放器！在服务器中随时随地享受红石音乐吧！
 
-V2 版本正在锐意开发中，敬请期待！
-
-[**下载开发预览版**](https://github.com/lgc-LLDev/NbsPlayer/raw/master/nbs-player/dist/NBSPlayer.js)（适配 LeviLamina，右键点击【链接另存为…】，拖进 plugins 文件夹重启两次服务器即可）
-
 ## 介绍
 
 ### 特点
@@ -17,6 +13,7 @@ V2 版本正在锐意开发中，敬请期待！
 - 支持自定义音色
   - 请将自定义音色的文件名称设置为 `playsound` 命令可以播放的声音 ID，例：`dig.stone.ogg`，支持资源包自定义的音色  
     ![例子](https://raw.githubusercontent.com/lgc-LLSEDev/readme/main/NbsPlayer/QQ%E5%9B%BE%E7%89%8720221030150141.png)
+- 支持了播放列表，可以连续或随机播放，支持创建自己的播放列表
 
 ### 缺点
 
@@ -25,6 +22,65 @@ V2 版本正在锐意开发中，敬请期待！
 - 不支持 左右声道偏离（懒，麻烦）
 - 不支持 layer 独奏（懒）
 - 不支持 loop（懒）
+
+### 截图
+
+#### 主界面
+
+<details>
+<summary>点击展开</summary>
+
+![1](https://raw.githubusercontent.com/lgc-LLSEDev/readme/main/NbsPlayer/1.png)
+
+</details>
+
+#### 文件列表
+
+<details>
+<summary>点击展开</summary>
+
+![2-1](https://raw.githubusercontent.com/lgc-LLSEDev/readme/main/NbsPlayer/2-1.png)  
+![2-2](https://raw.githubusercontent.com/lgc-LLSEDev/readme/main/NbsPlayer/2-2.png)
+
+</details>
+
+#### 播放控制
+
+<details>
+<summary>点击展开</summary>
+
+![3](https://raw.githubusercontent.com/lgc-LLSEDev/readme/main/NbsPlayer/3.png)
+
+</details>
+
+#### 创建歌单
+
+<details>
+<summary>点击展开</summary>
+
+![4](https://raw.githubusercontent.com/lgc-LLSEDev/readme/main/NbsPlayer/4.png)
+
+</details>
+
+#### 歌单操作
+
+<details>
+<summary>点击展开</summary>
+
+![5](https://raw.githubusercontent.com/lgc-LLSEDev/readme/main/NbsPlayer/5.png)
+
+</details>
+
+## 安装
+
+### 使用 Lip
+
+```bash
+# 版本号可能更新不及时，最新版本号以 Release 页面为准，请手动替换
+lip install github.com/lgc-LLDev/NBSPlayer@2.0.0
+```
+
+之后启动服务器，将 NBS 文件扔进 `./plugins/NBSPlayer/nbs` 文件夹中即可
 
 ## 联系我
 
