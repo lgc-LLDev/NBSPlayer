@@ -1,14 +1,9 @@
-import {
-  FormClose,
-  SimpleFormEx,
-  SimpleFormOperational,
-  sendModalFormAsync,
-} from 'form-api-ex';
+import { FormClose, SimpleFormEx, SimpleFormOperational } from 'form-api-ex';
 
 import { NBS_PATH, PLUGIN_NAME } from '../const';
 import { playAfter, replacePlaylist } from '../player';
 import { logErr } from '../utils';
-import { ParentFormFunc } from './common';
+import { ParentFormFunc, addToPlayListForm } from './common';
 
 export async function fileListFileForm(
   fileList: string[],
@@ -16,26 +11,28 @@ export async function fileListFileForm(
   player: LLSE_Player,
   parent?: ParentFormFunc
 ) {
+  const parentThis = () => fileListFileForm(fileList, filename, player, parent);
+
   new SimpleFormOperational<Promise<any>>(PLUGIN_NAME, filename, [
     {
       text: '覆盖当前列表并播放',
-      operation: () => replacePlaylist(player, fileList, filename),
+      operation: () =>
+        replacePlaylist(player, fileList, filename).then(() => parent?.()),
     },
     {
       text: '添加为下一首并立即切换',
-      operation: () => playAfter(player, filename, true),
+      operation: () => playAfter(player, filename, true).then(() => parent?.()),
     },
     {
       text: '下一首播放',
-      operation: () => playAfter(player, filename),
+      operation: () => playAfter(player, filename).then(() => parent?.()),
     },
     {
       text: '添加到歌单',
-      operation: () => sendModalFormAsync(player, PLUGIN_NAME, '未实现'),
+      operation: () => addToPlayListForm(player, filename).then(parentThis),
     },
   ])
     .sendAsync(player)
-    .then(() => parent?.())
     .catch(logErr);
 }
 

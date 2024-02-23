@@ -151,13 +151,16 @@ const PLUGIN_DESCRIPTION = description;
 const PLUGIN_EXTRA = { Author: 'student_2333', License: 'Apache-2.0' };
 const BASE_PATH = `./plugins/${PLUGIN_NAME}`;
 const NBS_PATH = `${BASE_PATH}/nbs`;
-[BASE_PATH, NBS_PATH].forEach((x) => {
+const DATA_PATH = `${BASE_PATH}/data`;
+const DATA_PLAYLIST_PATH = `${DATA_PATH}/playlist`;
+const DATA_HISTORY_PATH = `${DATA_PATH}/history`;
+[BASE_PATH, NBS_PATH, DATA_PATH, DATA_PLAYLIST_PATH, DATA_HISTORY_PATH].forEach((x) => {
     if (!file.exists(x))
         file.mkdir(x);
 });
 logger.setTitle(PLUGIN_NAME);
 
-var version = "0.5.1";
+var version = "0.5.2";
 
 const NAME = 'FormAPIEx';
 (version.split('.').map((v) => Number(v)));
@@ -1438,6 +1441,130 @@ class BasePlaylist extends PlayerEventTarget {
     }
 }
 
+class TipError extends Error {
+    constructor(message) {
+        super(message);
+        this.message = message;
+        this.name = 'TipError';
+    }
+}
+const dataManagerCache = new Map();
+class DataManager {
+    constructor(filePath, defaultContent) {
+        this.filePath = filePath;
+        this.defaultContent = defaultContent;
+    }
+    static get(filePath, defaultContent) {
+        if (!dataManagerCache.has(filePath)) {
+            const m = new this(filePath, defaultContent);
+            dataManagerCache.set(filePath, m);
+            return m;
+        }
+        return dataManagerCache.get(filePath);
+    }
+    async read(forceFlush = false) {
+        if (this._dataCache && !forceFlush)
+            return this._dataCache;
+        const res = file.readFrom(this.filePath);
+        if (res) {
+            this._dataCache = JSON.parse(res);
+            return JSON.parse(res);
+        }
+        if (!this.defaultContent)
+            throw new Error(`Read ${this.filePath} failed and no default provided`);
+        await this.write(this.defaultContent);
+        this._dataCache = this.defaultContent;
+        return this.defaultContent;
+    }
+    async write(content) {
+        const res = file.writeTo(this.filePath, JSON.stringify(content));
+        if (!res)
+            throw new Error(`Failed to write to ${this.filePath}`);
+        this._dataCache = content;
+    }
+    operate(callback) {
+        return this.read()
+            .then(callback)
+            .then((content) => this.write(content));
+    }
+}
+class ListDataManager extends DataManager {
+    async beforeAdd(x, data, index) { }
+    async add(x, index = -1) {
+        await this.operate(async (data) => {
+            const ls = Array.isArray(x) ? x : [x];
+            await this.beforeAdd?.(ls, data, index);
+            if (index === -1)
+                data.push(...ls);
+            else
+                data.splice(index, 0, ...ls);
+            return data;
+        });
+    }
+    async remove(index) {
+        await this.operate(async (data) => {
+            data.splice(index, 1);
+            return data;
+        });
+    }
+    async replace(index, newData) {
+        await this.operate(async (data) => {
+            data[index] = newData;
+            return data;
+        });
+    }
+    async changeIndex(from, to) {
+        await this.operate(async (data) => {
+            const [entry] = data.splice(from, 1);
+            data.splice(to, 0, entry);
+            return data;
+        });
+    }
+}
+class PlaylistDataManager extends ListDataManager {
+    static getFromXuid(xuid) {
+        return super.get(`${DATA_PLAYLIST_PATH}/${xuid}.json`, []);
+    }
+    async beforeAdd(x, data) {
+        const duplicated = x.find((xx) => data.some((dx) => dx.name === xx.name));
+        if (duplicated)
+            throw new TipError(`歌单名称 ${duplicated} 已存在`);
+    }
+    async change(index, newData) {
+        await this.operate(async (data) => {
+            const entry = data[index];
+            const existedNames = data
+                .map((x) => x.name)
+                .filter((x) => x !== entry.name);
+            if (newData.name && existedNames.includes(newData.name))
+                throw new TipError(`歌单名称 ${newData.name} 已存在`);
+            Object.assign(entry, newData);
+            return data;
+        });
+    }
+    async getByName(name) {
+        const data = await this.read();
+        const index = data.findIndex((x) => x.name === name);
+        if (index === -1)
+            throw new TipError(`歌单 ${name} 不存在`);
+        return [data[index], index];
+    }
+}
+class HistoryDataManager extends ListDataManager {
+    static getFromXuid(xuid) {
+        return super.get(`${DATA_HISTORY_PATH}/${xuid}.json`, []);
+    }
+    async insertFirst(x) {
+        await this.operate(async (data) => {
+            const index = data.indexOf(x);
+            if (index !== -1)
+                data.splice(index, 1);
+            data.unshift(x);
+            return data;
+        });
+    }
+}
+
 const SOUND_ID_MAPPING = [
     'note.harp',
     'note.bassattack',
@@ -1609,6 +1736,12 @@ class Playlist extends BasePlaylist {
             logger.error(formatError(error));
             mc.getPlayer(this.playerXuid).tell(`§c出现了一个错误\n${formatError(error)}`);
         });
+        this.addEventListener('switch', ({ params: { file } }) => {
+            if (!file)
+                return;
+            const history = HistoryDataManager.getFromXuid(this.playerXuid);
+            history.insertFirst(file.url);
+        });
     }
     async createPlayer(song) {
         return new Player(song, { playerXuid: this.playerXuid });
@@ -1636,10 +1769,9 @@ async function replacePlaylist(player, filenames, targetFilename) {
 async function playAfter(player, filename, playNow = false) {
     const playlist = ensurePlaylist(player);
     const oldPlayingFilename = playlist.currentFileList[playlist.playingIndex]?.displayString;
-    if (playNow && oldPlayingFilename !== filename) {
-        await playlist.addFile(new PlaylistFile(filename), playlist.playingIndex + 1);
+    await playlist.addFile(new PlaylistFile(filename), playlist.playingIndex + 1);
+    if (playNow && oldPlayingFilename !== filename)
         await playlist.next();
-    }
 }
 
 const LoopTypeNameMap = {
@@ -1696,52 +1828,6 @@ async function controlForm(player, parent) {
         .catch(logErr);
 }
 
-async function fileListFileForm(fileList, filename, player, parent) {
-    new SimpleFormOperational(PLUGIN_NAME, filename, [
-        {
-            text: '覆盖当前列表并播放',
-            operation: () => replacePlaylist(player, fileList, filename),
-        },
-        {
-            text: '添加为下一首并立即切换',
-            operation: () => playAfter(player, filename, true),
-        },
-        {
-            text: '下一首播放',
-            operation: () => playAfter(player, filename),
-        },
-        {
-            text: '添加到歌单',
-            operation: () => sendModalFormAsync(player, PLUGIN_NAME, '未实现'),
-        },
-    ])
-        .sendAsync(player)
-        .then(() => parent?.())
-        .catch(logErr);
-}
-async function fileListForm(player, parent) {
-    const files = file.getFilesList(NBS_PATH).filter((x) => x.endsWith('.nbs'));
-    const form = new SimpleFormEx(files);
-    form.title = PLUGIN_NAME;
-    form.canTurnPage = true;
-    form.canJumpPage = true;
-    form.hasSearchButton = true;
-    const res = await form.sendAsync(player);
-    if (res === FormClose) {
-        parent?.().catch(logErr);
-        return;
-    }
-    fileListFileForm(files, res, player, () => fileListForm(player, parent)).catch(logErr);
-}
-
-async function historyForm(player, parent) {
-    sendModalFormAsync(player, PLUGIN_NAME, '未实现').then(() => parent?.());
-}
-
-async function newListForm(player, parent) {
-    sendModalFormAsync(player, PLUGIN_NAME, '未实现').then(() => parent?.());
-}
-
 async function changeIndexForm(list, originalIndex, player) {
     const changedList = list.slice();
     changedList.push(undefined);
@@ -1760,10 +1846,109 @@ async function changeIndexForm(list, originalIndex, player) {
         throw Error('unexpected list change');
     return index;
 }
+async function playListSelectForm(player, additionalContent = '') {
+    const playlists = await PlaylistDataManager.getFromXuid(player.xuid).read();
+    if (!playlists) {
+        await sendModalFormAsync(player, PLUGIN_NAME, '你还没有创建过歌单');
+        return FormClose;
+    }
+    const form = new SimpleFormEx(playlists.map((x) => x.name));
+    form.title = PLUGIN_NAME;
+    if (additionalContent)
+        form.content = `${additionalContent}\n${form.content}`;
+    form.canTurnPage = true;
+    form.canJumpPage = true;
+    form.hasSearchButton = true;
+    const res = await form.sendAsync(player);
+    return res === FormClose ? FormClose : res;
+}
+async function addToPlayListForm(player, filename) {
+    const playlistName = await playListSelectForm(player, `选择要添加到的歌单`);
+    if (playlistName === FormClose)
+        return;
+    const confManager = PlaylistDataManager.getFromXuid(player.xuid);
+    const [{ files }, index] = await confManager.getByName(playlistName);
+    if (!files.includes(filename))
+        files.push(filename);
+    await confManager.change(index, { files });
+}
 
-async function playingFileForm(playlist, index, player, parent) {
-    const name = playlist.currentFileList[index].displayString;
-    new SimpleFormOperational(PLUGIN_NAME, name, [
+async function fileListFileForm(fileList, filename, player, parent) {
+    const parentThis = () => fileListFileForm(fileList, filename, player, parent);
+    new SimpleFormOperational(PLUGIN_NAME, filename, [
+        {
+            text: '覆盖当前列表并播放',
+            operation: () => replacePlaylist(player, fileList, filename).then(() => parent?.()),
+        },
+        {
+            text: '添加为下一首并立即切换',
+            operation: () => playAfter(player, filename, true).then(() => parent?.()),
+        },
+        {
+            text: '下一首播放',
+            operation: () => playAfter(player, filename).then(() => parent?.()),
+        },
+        {
+            text: '添加到歌单',
+            operation: () => addToPlayListForm(player, filename).then(parentThis),
+        },
+    ])
+        .sendAsync(player)
+        .catch(logErr);
+}
+async function fileListForm(player, parent) {
+    const files = file.getFilesList(NBS_PATH).filter((x) => x.endsWith('.nbs'));
+    const form = new SimpleFormEx(files);
+    form.title = PLUGIN_NAME;
+    form.canTurnPage = true;
+    form.canJumpPage = true;
+    form.hasSearchButton = true;
+    const res = await form.sendAsync(player);
+    if (res === FormClose) {
+        parent?.().catch(logErr);
+        return;
+    }
+    fileListFileForm(files, res, player, () => fileListForm(player, parent)).catch(logErr);
+}
+
+async function historyFileForm(filename, player, parent) {
+    new SimpleFormOperational(PLUGIN_NAME, filename, [
+        {
+            text: '添加为下一首并立即切换',
+            operation: () => playAfter(player, filename, true),
+        },
+        {
+            text: '下一首播放',
+            operation: () => playAfter(player, filename),
+        },
+        {
+            text: '添加到歌单',
+            operation: () => addToPlayListForm(player, filename),
+        },
+    ])
+        .sendAsync(player)
+        .then(() => parent?.())
+        .catch(logErr);
+}
+async function historyForm(player, parent) {
+    const confManager = HistoryDataManager.getFromXuid(player.xuid);
+    const files = await confManager.read();
+    const form = new SimpleFormEx(files);
+    form.title = PLUGIN_NAME;
+    form.canTurnPage = true;
+    form.canJumpPage = true;
+    form.hasSearchButton = true;
+    const res = await form.sendAsync(player);
+    if (res === FormClose) {
+        parent?.().catch(logErr);
+        return;
+    }
+    historyFileForm(res, player, parent).catch(logErr);
+}
+
+async function playingFileForm(playlist, file, player, parent) {
+    const index = playlist.currentFileList.indexOf(file);
+    new SimpleFormOperational(PLUGIN_NAME, file.displayString, [
         {
             text: '切换到此首',
             operation: () => playlist.switchTo(index),
@@ -1778,7 +1963,10 @@ async function playingFileForm(playlist, index, player, parent) {
         },
         {
             text: '从列表中移除',
-            operation: () => sendModalFormAsync(player, PLUGIN_NAME, '真的要删除吗？').then((res) => res ? playlist.removeFile(index) : undefined),
+            operation: async () => {
+                if (await sendModalFormAsync(player, PLUGIN_NAME, '真的要删除吗？'))
+                    playlist.removeFile(index);
+            },
         },
     ])
         .sendAsync(player)
@@ -1805,11 +1993,216 @@ async function playingForm(player, parent) {
         parent?.().catch(logErr);
         return;
     }
-    playingFileForm(playlist, playlist.currentFileList.indexOf(res), player, () => playingForm(player, parent)).catch(logErr);
+    playingFileForm(playlist, res, player, () => playingForm(player, parent)).catch(logErr);
 }
 
+async function playListSongForm(playListName, songFilename, player, parent) {
+    const confManager = PlaylistDataManager.getFromXuid(player.xuid);
+    new SimpleFormOperational(PLUGIN_NAME, songFilename, [
+        {
+            text: '覆盖当前列表并播放',
+            operation: async () => replacePlaylist(player, (await confManager.getByName(playListName))[0].files, songFilename),
+        },
+        {
+            text: '添加为下一首并立即切换',
+            operation: () => playAfter(player, songFilename, true),
+        },
+        {
+            text: '下一首播放',
+            operation: () => playAfter(player, songFilename),
+        },
+        {
+            text: '添加到歌单',
+            operation: () => addToPlayListForm(player, songFilename),
+        },
+        {
+            text: '变更顺序',
+            operation: async () => {
+                const [data, playlistIndex] = await confManager.getByName(playListName);
+                const { files } = data;
+                const fileIndex = files.findIndex((x) => x === songFilename);
+                const newIdx = await changeIndexForm(files, fileIndex, player);
+                if (newIdx === FormClose)
+                    return;
+                files.splice(fileIndex, 1);
+                files.splice(newIdx, 0, songFilename);
+                await confManager.change(playlistIndex, { files });
+            },
+        },
+        {
+            text: '从歌单中删除',
+            operation: async () => {
+                if (await sendModalFormAsync(player, PLUGIN_NAME, '真的要删除吗？')) {
+                    const [data, playlistIndex] = await confManager.getByName(playListName);
+                    const { files } = data;
+                    const fileIndex = files.findIndex((x) => x === songFilename);
+                    files.splice(fileIndex, 1);
+                    await confManager.change(playlistIndex, { files });
+                }
+            },
+        },
+    ])
+        .sendAsync(player)
+        .then(() => parent?.())
+        .catch((err) => {
+        if (err instanceof TipError)
+            sendModalFormAsync(player, PLUGIN_NAME, err.message)
+                .then(() => playListSongForm(playListName, songFilename, player, parent))
+                .catch(logErr);
+        else
+            logErr(err);
+    });
+}
+async function playListViewForm(name, player, parent) {
+    const confManager = PlaylistDataManager.getFromXuid(player.xuid);
+    const data = await confManager.read();
+    const entry = data.find((x) => x.name === name);
+    if (!entry)
+        return;
+    const form = new SimpleFormEx(entry.files);
+    form.title = PLUGIN_NAME;
+    form.canTurnPage = true;
+    form.canJumpPage = true;
+    form.hasSearchButton = true;
+    const res = await form.sendAsync(player);
+    if (res === FormClose) {
+        parent?.().catch(logErr);
+        return;
+    }
+    playListSongForm(name, res, player, () => playListViewForm(name, player, parent)).catch(logErr);
+}
+async function playListChangeNameForm(name, player) {
+    const confManager = PlaylistDataManager.getFromXuid(player.xuid);
+    const [, index] = await confManager.getByName(name);
+    const res = await new CustomFormEx(PLUGIN_NAME)
+        .addInput('newName', '请输入新名称')
+        .sendAsync(player);
+    if (res === FormClose)
+        return FormClose;
+    const { newName } = res;
+    if (!newName) {
+        await sendModalFormAsync(player, PLUGIN_NAME, '歌单名称不能为空');
+        return playListChangeNameForm(name, player);
+    }
+    await confManager.change(index, { name: newName });
+    return newName;
+}
+async function playListOperateForm(name, player, parent) {
+    const confManager = PlaylistDataManager.getFromXuid(player.xuid);
+    const parentThis = () => playListOperateForm(name, player, parent);
+    new SimpleFormOperational(PLUGIN_NAME, name, [
+        {
+            text: '播放',
+            operation: async () => replacePlaylist(player, (await confManager.getByName(name))[0].files).then(() => parent?.()),
+        },
+        {
+            text: '查看',
+            operation: () => playListViewForm(name, player, parentThis),
+        },
+        {
+            text: '变更顺序',
+            operation: async () => {
+                const data = await confManager.read();
+                const [, plIndex] = await confManager.getByName(name);
+                const newIdx = await changeIndexForm(data.map((x) => x.name), plIndex, player);
+                if (newIdx !== FormClose)
+                    await confManager.changeIndex(plIndex, newIdx);
+                parentThis().catch(logErr);
+            },
+        },
+        {
+            text: '重命名',
+            operation: () => playListChangeNameForm(name, player)
+                .then((x) => {
+                if (x !== FormClose)
+                    name = x;
+            })
+                .then(parentThis)
+                .catch(logErr),
+        },
+        {
+            text: '清除所有无效歌曲',
+            operation: async () => {
+                const [data, index] = await confManager.getByName(name);
+                const before = data.files.length;
+                const newFileList = data.files.filter((x) => file.exists(`${NBS_PATH}/${x}`));
+                const after = newFileList.length;
+                await confManager.change(index, { files: newFileList });
+                await sendModalFormAsync(player, PLUGIN_NAME, `清除了 ${before - after} 首无效歌曲`);
+                parentThis().catch(logErr);
+            },
+        },
+        {
+            text: '删除',
+            operation: async () => {
+                const [, index] = await confManager.getByName(name);
+                if (await sendModalFormAsync(player, PLUGIN_NAME, '真的要删除吗？'))
+                    confManager
+                        .remove(index)
+                        .then(() => parent?.())
+                        .catch(logErr);
+                else
+                    parentThis().catch(logErr);
+            },
+        },
+    ])
+        .sendAsync(player)
+        .then((res) => (res === FormClose ? parent?.() : undefined))
+        .catch((err) => {
+        if (err instanceof TipError)
+            sendModalFormAsync(player, PLUGIN_NAME, err.message)
+                .then(() => playListOperateForm(name, player, parent))
+                .catch(logErr);
+        else
+            logErr(err);
+    });
+}
 async function playListsForm(player, parent) {
-    sendModalFormAsync(player, PLUGIN_NAME, '未实现').then(() => parent?.());
+    const res = await playListSelectForm(player);
+    if (res === FormClose) {
+        parent?.().catch(logErr);
+        return;
+    }
+    playListOperateForm(res, player, () => playListsForm(player, parent)).catch(logErr);
+}
+async function newListForm(player, parent) {
+    const playingPl = ensurePlaylist(player);
+    const newPlaylistModeMap = [
+        ['从当前播放列表创建', () => playingPl.fileList.map((x) => x.url)],
+        ['创建空歌单', () => []],
+    ];
+    const res = await new CustomFormEx(PLUGIN_NAME)
+        .addStepSlider('mode', '请选择创建模式', newPlaylistModeMap.map((x) => x[0]))
+        .addInput('name', '请输入歌单名称')
+        .sendAsync(player);
+    if (res === FormClose) {
+        parent?.().catch(logErr);
+        return;
+    }
+    if (!res.name) {
+        sendModalFormAsync(player, PLUGIN_NAME, '歌单名称不能为空')
+            .then(() => newListForm(player, parent))
+            .catch(logErr);
+        return;
+    }
+    const manager = PlaylistDataManager.getFromXuid(player.xuid);
+    try {
+        await manager.add({
+            name: res.name,
+            files: newPlaylistModeMap[res.mode][1](),
+        });
+    }
+    catch (e) {
+        if (e instanceof TipError)
+            sendModalFormAsync(player, PLUGIN_NAME, e.message)
+                .then(() => parent?.())
+                .catch(logErr);
+        else
+            throw e;
+    }
+    sendModalFormAsync(player, PLUGIN_NAME, '创建成功')
+        .then(() => parent?.())
+        .catch(logErr);
 }
 
 async function mainForm(player) {
@@ -1831,8 +2224,108 @@ async function mainForm(player) {
 function init() {
     const cmd = mc.newCommand('nbs', PLUGIN_NAME, PermType.Any);
     cmd.setAlias('nbsplayer');
+    cmd.setEnum('enumFileList', ['filelist']);
+    cmd.mandatory('enumFileList', ParamType.Enum, 'enumFileList', 1);
+    cmd.overload(['enumFileList']);
+    cmd.setEnum('enumControl', ['control']);
+    cmd.mandatory('enumControl', ParamType.Enum, 'enumControl', 1);
+    cmd.overload(['enumControl']);
+    cmd.setEnum('enumPlaying', ['playing']);
+    cmd.mandatory('enumPlaying', ParamType.Enum, 'enumPlaying', 1);
+    cmd.overload(['enumPlaying']);
+    cmd.setEnum('enumHistory', ['history']);
+    cmd.mandatory('enumHistory', ParamType.Enum, 'enumHistory', 1);
+    cmd.overload(['enumHistory']);
+    cmd.setEnum('enumPlaylists', ['playlists']);
+    cmd.mandatory('enumPlaylists', ParamType.Enum, 'enumPlaylists', 1);
+    cmd.overload(['enumPlaylists']);
+    cmd.setEnum('enumNewList', ['newlist']);
+    cmd.mandatory('enumNewList', ParamType.Enum, 'enumNewList', 1);
+    cmd.overload(['enumNewList']);
+    cmd.setEnum('enumIsPlaying', ['isplaying']);
+    cmd.mandatory('enumIsPlaying', ParamType.Enum, 'enumIsPlaying', 1);
+    cmd.optional('player', ParamType.Player);
+    cmd.overload(['enumIsPlaying', 'player']);
+    cmd.setEnum('enumPlay', ['play']);
+    cmd.mandatory('enumPlay', ParamType.Enum, 'enumPlay', 1);
+    cmd.mandatory('filename', ParamType.String);
+    cmd.optional('forcePlay', ParamType.Bool);
+    cmd.overload(['enumPlay', 'filename', 'player', 'forcePlay']);
     cmd.overload();
-    cmd.setCallback((_, { player }) => {
+    cmd.setCallback((_, { player }, output, res) => {
+        if ('enumFileList' in res && res.enumFileList) {
+            if (!player)
+                return false;
+            fileListForm(player).catch(logErr);
+            return true;
+        }
+        if ('enumControl' in res && res.enumControl) {
+            if (!player)
+                return false;
+            controlForm(player).catch(logErr);
+            return true;
+        }
+        if ('enumPlaying' in res && res.enumPlaying) {
+            if (!player)
+                return false;
+            playingForm(player).catch(logErr);
+            return true;
+        }
+        if ('enumHistory' in res && res.enumHistory) {
+            if (!player)
+                return false;
+            historyForm(player).catch(logErr);
+            return true;
+        }
+        if ('enumPlaylists' in res && res.enumPlaylists) {
+            if (!player)
+                return false;
+            playListsForm(player).catch(logErr);
+            return true;
+        }
+        if ('enumNewList' in res && res.enumNewList) {
+            if (!player)
+                return false;
+            newListForm(player).catch(logErr);
+            return true;
+        }
+        if ('enumIsPlaying' in res && res.enumIsPlaying) {
+            const [targetPlayer] = res.player || [player];
+            if (!targetPlayer)
+                return false;
+            const { isPlaying } = ensurePlaylist(targetPlayer);
+            output.addMessage(`${isPlaying}`);
+            return isPlaying;
+        }
+        if ('enumPlay' in res && res.enumPlay) {
+            if (!file.exists(`${NBS_PATH}/${res.filename}`)) {
+                output.addMessage(`§c文件 ${res.filename} 不存在`);
+                return false;
+            }
+            let playerList = [];
+            if (res.player?.length)
+                playerList = res.player;
+            else if (player)
+                playerList = [player];
+            else
+                return false;
+            const playRes = playerList.map((targetPlayer) => {
+                const playlist = ensurePlaylist(targetPlayer);
+                const forcePlay = res.forcePlay ?? false;
+                if (!forcePlay && playlist.isActive)
+                    return false;
+                playAfter(targetPlayer, res.filename, forcePlay).catch(logErr);
+                return true;
+            });
+            const outTmp = [];
+            for (let i = 0; i < playRes.length; i += 1) {
+                const pl = playerList[i];
+                const ok = playRes[i];
+                outTmp.push(ok ? `§a成功为 ${pl.realName} 播放` : `§c为 ${pl.realName} 播放失败`);
+            }
+            output.addMessage(outTmp.join('\n'));
+            return true;
+        }
         if (!player)
             return false;
         mainForm(player).catch(logErr);

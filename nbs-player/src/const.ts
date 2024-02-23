@@ -9,8 +9,13 @@ export const PLUGIN_EXTRA = { Author: 'student_2333', License: 'Apache-2.0' };
 
 export const BASE_PATH = `./plugins/${PLUGIN_NAME}`;
 export const NBS_PATH = `${BASE_PATH}/nbs`;
-[BASE_PATH, NBS_PATH].forEach((x) => {
-  if (!file.exists(x)) file.mkdir(x);
-});
+export const DATA_PATH = `${BASE_PATH}/data`;
+export const DATA_PLAYLIST_PATH = `${DATA_PATH}/playlist`;
+export const DATA_HISTORY_PATH = `${DATA_PATH}/history`;
+[BASE_PATH, NBS_PATH, DATA_PATH, DATA_PLAYLIST_PATH, DATA_HISTORY_PATH].forEach(
+  (x) => {
+    if (!file.exists(x)) file.mkdir(x);
+  }
+);
 
 logger.setTitle(PLUGIN_NAME);

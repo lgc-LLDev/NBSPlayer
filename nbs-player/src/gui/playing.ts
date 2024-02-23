@@ -12,12 +12,13 @@ import { ParentFormFunc, changeIndexForm } from './common';
 
 export async function playingFileForm(
   playlist: Playlist,
-  index: number,
+  file: PlaylistFile,
   player: LLSE_Player,
   parent?: ParentFormFunc
 ) {
-  const name = playlist.currentFileList[index].displayString;
-  new SimpleFormOperational<Promise<any>>(PLUGIN_NAME, name, [
+  const index = playlist.currentFileList.indexOf(file);
+
+  new SimpleFormOperational<Promise<any>>(PLUGIN_NAME, file.displayString, [
     {
       text: '切换到此首',
       operation: () => playlist.switchTo(index),
@@ -35,10 +36,10 @@ export async function playingFileForm(
     },
     {
       text: '从列表中移除',
-      operation: () =>
-        sendModalFormAsync(player, PLUGIN_NAME, '真的要删除吗？').then((res) =>
-          res ? playlist.removeFile(index) : undefined
-        ),
+      operation: async () => {
+        if (await sendModalFormAsync(player, PLUGIN_NAME, '真的要删除吗？'))
+          playlist.removeFile(index);
+      },
     },
   ])
     .sendAsync(player)
@@ -74,7 +75,7 @@ export async function playingForm(
     parent?.().catch(logErr);
     return;
   }
-  playingFileForm(playlist, playlist.currentFileList.indexOf(res), player, () =>
+  playingFileForm(playlist, res, player, () =>
     playingForm(player, parent)
   ).catch(logErr);
 }

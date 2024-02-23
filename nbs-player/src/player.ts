@@ -12,6 +12,7 @@ import {
 
 import { ticker } from './utils';
 import { NBS_PATH } from './const';
+import { HistoryDataManager } from './data';
 
 export const SOUND_ID_MAPPING = [
   'note.harp',
@@ -246,6 +247,12 @@ export class Playlist extends BasePlaylist<PlaylistFile, Player> {
         `§c出现了一个错误\n${formatError(error)}`
       );
     });
+
+    this.addEventListener('switch', ({ params: { file } }) => {
+      if (!file) return;
+      const history = HistoryDataManager.getFromXuid(this.playerXuid);
+      history.insertFirst(file.url);
+    });
   }
 
   async createPlayer(song: ISong): Promise<Player> {
@@ -289,11 +296,6 @@ export async function playAfter(
   const playlist = ensurePlaylist(player);
   const oldPlayingFilename =
     playlist.currentFileList[playlist.playingIndex]?.displayString;
-  if (playNow && oldPlayingFilename !== filename) {
-    await playlist.addFile(
-      new PlaylistFile(filename),
-      playlist.playingIndex + 1
-    );
-    await playlist.next();
-  }
+  await playlist.addFile(new PlaylistFile(filename), playlist.playingIndex + 1);
+  if (playNow && oldPlayingFilename !== filename) await playlist.next();
 }
