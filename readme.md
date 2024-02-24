@@ -12,7 +12,7 @@ BDS 中的 NBS 音乐播放器！在服务器中随时随地享受红石音乐�
 - 支持超过两个八度限制的音符
 - 支持自定义音色
   - 请将自定义音色的文件名称设置为 `playsound` 命令可以播放的声音 ID，例：`dig.stone.ogg`，支持资源包自定义的音色  
-    ![例子](https://raw.githubusercontent.com/lgc-LLSEDev/readme/main/NbsPlayer/QQ%E5%9B%BE%E7%89%8720221030150141.png)
+    ![例子](https://raw.githubusercontent.com/lgc-LLDev/readme/main/NbsPlayer/QQ%E5%9B%BE%E7%89%8720221030150141.png)
 - 支持了播放列表，可以连续或随机播放，支持创建自己的播放列表
 
 ### 缺点
@@ -30,7 +30,7 @@ BDS 中的 NBS 音乐播放器！在服务器中随时随地享受红石音乐�
 <details>
 <summary>点击展开</summary>
 
-![1](https://raw.githubusercontent.com/lgc-LLSEDev/readme/main/NbsPlayer/1.png)
+![1](https://raw.githubusercontent.com/lgc-LLDev/readme/main/NbsPlayer/1.png)
 
 </details>
 
@@ -39,8 +39,8 @@ BDS 中的 NBS 音乐播放器！在服务器中随时随地享受红石音乐�
 <details>
 <summary>点击展开</summary>
 
-![2-1](https://raw.githubusercontent.com/lgc-LLSEDev/readme/main/NbsPlayer/2-1.png)  
-![2-2](https://raw.githubusercontent.com/lgc-LLSEDev/readme/main/NbsPlayer/2-2.png)
+![2-1](https://raw.githubusercontent.com/lgc-LLDev/readme/main/NbsPlayer/2-1.png)  
+![2-2](https://raw.githubusercontent.com/lgc-LLDev/readme/main/NbsPlayer/2-2.png)
 
 </details>
 
@@ -49,7 +49,7 @@ BDS 中的 NBS 音乐播放器！在服务器中随时随地享受红石音乐�
 <details>
 <summary>点击展开</summary>
 
-![3](https://raw.githubusercontent.com/lgc-LLSEDev/readme/main/NbsPlayer/3.png)
+![3](https://raw.githubusercontent.com/lgc-LLDev/readme/main/NbsPlayer/3.png)
 
 </details>
 
@@ -58,7 +58,7 @@ BDS 中的 NBS 音乐播放器！在服务器中随时随地享受红石音乐�
 <details>
 <summary>点击展开</summary>
 
-![4](https://raw.githubusercontent.com/lgc-LLSEDev/readme/main/NbsPlayer/4.png)
+![4](https://raw.githubusercontent.com/lgc-LLDev/readme/main/NbsPlayer/4.png)
 
 </details>
 
@@ -67,7 +67,7 @@ BDS 中的 NBS 音乐播放器！在服务器中随时随地享受红石音乐�
 <details>
 <summary>点击展开</summary>
 
-![5](https://raw.githubusercontent.com/lgc-LLSEDev/readme/main/NbsPlayer/5.png)
+![5](https://raw.githubusercontent.com/lgc-LLDev/readme/main/NbsPlayer/5.png)
 
 </details>
 
