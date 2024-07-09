@@ -3,20 +3,20 @@ import {
   SimpleFormEx,
   SimpleFormOperational,
   sendModalFormAsync,
-} from 'form-api-ex';
+} from 'form-api-ex'
 
-import { PLUGIN_NAME } from '../const';
-import { Playlist, PlaylistFile, ensurePlaylist } from '../player';
-import { logErr } from '../utils';
-import { ParentFormFunc, changeIndexForm } from './common';
+import { PLUGIN_NAME } from '../const'
+import { Playlist, PlaylistFile, ensurePlaylist } from '../player'
+import { logErr } from '../utils'
+import { ParentFormFunc, changeIndexForm } from './common'
 
 export async function playingFileForm(
   playlist: Playlist,
   file: PlaylistFile,
   player: LLSE_Player,
-  parent?: ParentFormFunc
+  parent?: ParentFormFunc,
 ) {
-  const index = playlist.currentFileList.indexOf(file);
+  const index = playlist.currentFileList.indexOf(file)
 
   new SimpleFormOperational<Promise<any>>(PLUGIN_NAME, file.displayString, [
     {
@@ -29,53 +29,51 @@ export async function playingFileForm(
         const newIndex = await changeIndexForm(
           playlist.currentFileList.map((x) => x.displayString),
           index,
-          player
-        );
-        if (newIndex !== FormClose) playlist.changeIndex(index, newIndex);
+          player,
+        )
+        if (newIndex !== FormClose) playlist.changeIndex(index, newIndex)
       },
     },
     {
       text: '从列表中移除',
       operation: async () => {
-        if (await sendModalFormAsync(player, PLUGIN_NAME, '真的要删除吗？'))
-          playlist.removeFile(index);
+        if (await sendModalFormAsync(player, PLUGIN_NAME, '真的要删除吗？')) {
+          playlist.removeFile(index)
+        }
       },
     },
   ])
     .sendAsync(player)
     .then(() => parent?.())
-    .catch(logErr);
+    .catch(logErr)
 }
 
-export async function playingForm(
-  player: LLSE_Player,
-  parent?: ParentFormFunc
-) {
-  const playlist = ensurePlaylist(player);
+export async function playingForm(player: LLSE_Player, parent?: ParentFormFunc) {
+  const playlist = ensurePlaylist(player)
   if (!playlist.length) {
     sendModalFormAsync(player, PLUGIN_NAME, '播放列表为空')
       .then(() => parent?.())
-      .catch(logErr);
-    return;
+      .catch(logErr)
+    return
   }
 
-  const form = new SimpleFormEx(playlist.currentFileList as PlaylistFile[]);
-  form.title = PLUGIN_NAME;
-  const originalFormatter = form.formatter;
+  const form = new SimpleFormEx(playlist.currentFileList as PlaylistFile[])
+  form.title = PLUGIN_NAME
+  const originalFormatter = form.formatter
   form.formatter = (v, index, array) =>
-    originalFormatter(v.displayString as any, index, array);
-  form.canTurnPage = true;
-  form.canJumpPage = true;
-  form.hasSearchButton = true;
+    originalFormatter(v.displayString as any, index, array)
+  form.canTurnPage = true
+  form.canJumpPage = true
+  form.hasSearchButton = true
   const res = await form.sendAsync(
     player,
-    Math.ceil((playlist.playingIndex + 1) / form.maxPageNum)
-  );
+    Math.ceil((playlist.playingIndex + 1) / form.maxPageNum),
+  )
   if (res === FormClose) {
-    parent?.().catch(logErr);
-    return;
+    parent?.().catch(logErr)
+    return
   }
-  playingFileForm(playlist, res, player, () =>
-    playingForm(player, parent)
-  ).catch(logErr);
+  playingFileForm(playlist, res, player, () => playingForm(player, parent)).catch(
+    logErr,
+  )
 }
