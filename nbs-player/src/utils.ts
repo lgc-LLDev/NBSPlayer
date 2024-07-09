@@ -5,9 +5,9 @@ export function logErr(err: any) {
 }
 
 export const ticker = new (class {
-  private callbacks: (() => any)[] = []
+  #callbacks: (() => any)[] = []
 
-  private calling = false
+  #calling = false
 
   constructor() {
     mc.listen('onTick', () => {
@@ -16,19 +16,19 @@ export const ticker = new (class {
   }
 
   add(callback: () => any) {
-    this.callbacks.push(callback)
+    this.#callbacks.push(callback)
     return this.remove.bind(this, callback)
   }
 
   remove(callback: () => any) {
-    const index = this.callbacks.indexOf(callback)
-    if (index !== -1) this.callbacks.splice(index, 1)
+    const index = this.#callbacks.indexOf(callback)
+    if (index !== -1) this.#callbacks.splice(index, 1)
   }
 
   async trigger() {
-    if (this.calling) return
-    this.calling = true
-    await Promise.all(this.callbacks.map((x) => x()))
-    this.calling = false
+    if (this.#calling) return
+    this.#calling = true
+    await Promise.all(this.#callbacks.map((x) => x()))
+    this.#calling = false
   }
 })()

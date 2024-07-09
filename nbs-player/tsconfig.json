@@ -1,13 +1,10 @@
 {
-  "extends": "../../tsconfig.template.json",
-  "include": ["./src/**/*"],
+  "extends": "../../tsconfig.esbuild.json",
+  "include": ["src"],
   "compilerOptions": {
-    "module": "ESNext",
-    "moduleResolution": "Node",
-    "rootDir": "./src",
-    "outDir": "./dist",
-    "noEmit": true,
-    "composite": false,
-    "incremental": false
+    "rootDir": "src",
+    "outDir": "dist",
+    "emitDeclarationOnly": false,
+    "noEmit": true // no .d.ts
   }
 }
