@@ -4,7 +4,7 @@
   "description": "Play NBS files in MCBE with LL",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc -b && dumble",
+    "build": "tsc -b && dumble && node -e \"require('fs').renameSync('./dist/index.js', './dist/NBSPlayer.js')\"",
     "clean": "rimraf ./dist"
   },
   "keywords": [
@@ -14,7 +14,7 @@
     "bedrock"
   ],
   "author": "student_2333 <lgc2333@126.com> (https://lgc2333.top)",
-  "repository": "github:lgc-LLDev/NbsPlayer",
+  "repository": "github:lgc-LLDev/NBSPlayer",
   "license": "Apache-2.0",
   "funding": "https://afdian.net/a/lgc2333",
   "dependencies": {

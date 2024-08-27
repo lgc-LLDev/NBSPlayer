@@ -5,6 +5,7 @@
     "rootDir": "src",
     "outDir": "dist",
     "emitDeclarationOnly": false,
-    "noEmit": true // no .d.ts
+    "noEmit": true, // no .d.ts
+    "resolveJsonModule": true
   }
 }
