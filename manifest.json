@@ -1,0 +1,10 @@
+{
+  "entry": "NBSPlayer.js",
+  "name": "NBSPlayer",
+  "type": "lse-quickjs",
+  "dependencies": [
+    {
+      "name": "legacy-script-engine-quickjs"
+    }
+  ]
+}
