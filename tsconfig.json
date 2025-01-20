@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base",
+  "include": ["src", "src/third-party/EncoderDecoderTogether.min.js"],
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "emitDeclarationOnly": false,
+    "noEmit": true, // no .d.ts
+    "resolveJsonModule": true,
+    "types": ["levi-lamina-lse"]
+  }
+}

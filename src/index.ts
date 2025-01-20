@@ -1,5 +1,3 @@
-/// <reference path="../../../HelperLib/src/index.d.ts"/>
-
 // init polyfill
 import './polyfill'
 

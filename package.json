@@ -1,23 +1,31 @@
 {
-  "name": "nbs-player-workspace",
-  "private": true,
-  "version": "0.0.0",
-  "description": "",
-  "workspaces": [
-    "nbs-play/packages/*",
-    "nbs-player"
-  ],
+  "name": "nbs-player",
+  "version": "2.0.0",
+  "description": "Play NBS files in MCBE with LL",
+  "main": "dist/index.js",
   "scripts": {
-    "build": "pnpm run -r build",
-    "clean": "pnpm run -r clean"
+    "build": "tsc -b && dumble && node -e \"require('fs').renameSync('./dist/index.js', './dist/NBSPlayer.js')\"",
+    "clean": "rimraf ./dist && rimraf tsconfig.tsbuildinfo"
   },
   "keywords": [
     "nbs",
-    "noteblock",
-    "minecraft"
+    "minecraft",
+    "bds",
+    "bedrock"
   ],
   "author": "student_2333 <lgc2333@126.com> (https://lgc2333.top)",
-  "repository": "github:lgc-LLDev/NbsPlayer",
+  "repository": "github:lgc-LLDev/NBSPlayer",
   "license": "Apache-2.0",
-  "funding": "https://afdian.net/a/lgc2333"
+  "funding": "https://afdian.net/a/lgc2333",
+  "peerDependencies": {
+    "form-api-ex": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/text-encoding": "^0.0.40",
+    "dumble": "^0.2.1",
+    "esbuild": "^0.24.2",
+    "event-target-polyfill": "^0.0.4",
+    "nbs-play": "workspace:^",
+    "rimraf": "^6.0.1"
+  }
 }

@@ -1,4 +1,0 @@
-packages:
-  - nbs-play/packages/*
-  - nbs-player
-  - ../FormAPIEx
