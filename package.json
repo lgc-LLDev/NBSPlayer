@@ -17,14 +17,12 @@
   "repository": "github:lgc-LLDev/NBSPlayer",
   "license": "Apache-2.0",
   "funding": "https://afdian.net/a/lgc2333",
-  "peerDependencies": {
-    "form-api-ex": "workspace:^"
-  },
   "devDependencies": {
     "@types/text-encoding": "^0.0.40",
     "dumble": "^0.2.1",
     "esbuild": "^0.24.2",
     "event-target-polyfill": "^0.0.4",
+    "form-api-ex": "workspace:^",
     "nbs-play": "workspace:^",
     "rimraf": "^6.0.1"
   }

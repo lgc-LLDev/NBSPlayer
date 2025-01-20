@@ -11,8 +11,7 @@
   },
   "dependencies": {
     "github.com/LiteLDev/LeviLamina": ">=0.x",
-    "gitea.litebds.com/LiteLDev/legacy-script-engine-quickjs": ">=0.x",
-    "https://github.com/lgc-LLDev/FormAPIEx": ">=0.5.2"
+    "gitea.litebds.com/LiteLDev/legacy-script-engine-quickjs": ">=0.x"
   },
   "files": {
     "place": [
