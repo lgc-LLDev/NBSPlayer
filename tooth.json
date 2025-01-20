@@ -6,7 +6,7 @@
   "info": {
     "name": "NBSPlayer",
     "description": "Play NBS files in Minecraft",
-    "author": "student_2333",
+    "author": "LgCookie",
     "tags": ["plugin", "lse", "quickjs", "nbs", "noteblock", "music"]
   },
   "dependencies": {

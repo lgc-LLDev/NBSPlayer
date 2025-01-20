@@ -5,7 +5,7 @@ export const PLUGIN_VERSION = <[number, number, number]>(
   version.split('.').map((v) => Number(v))
 )
 export const PLUGIN_DESCRIPTION = description
-export const PLUGIN_EXTRA = { Author: 'student_2333', License: 'Apache-2.0' }
+export const PLUGIN_EXTRA = { Author: 'LgCookie', License: 'Apache-2.0' }
 
 export const BASE_PATH = `./plugins/${PLUGIN_NAME}`
 export const NBS_PATH = `${BASE_PATH}/nbs`
