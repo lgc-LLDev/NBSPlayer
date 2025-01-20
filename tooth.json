@@ -2,12 +2,17 @@
   "$schema": "https://raw.githubusercontent.com/lippkg/lip/main/schemas/tooth.v2.schema.json",
   "format_version": 2,
   "tooth": "github.com/lgc-LLDev/NBSPlayer",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "info": {
     "name": "NBSPlayer",
     "description": "Play NBS files in Minecraft",
     "author": "student_2333",
     "tags": ["plugin", "lse", "quickjs", "nbs", "noteblock", "music"]
+  },
+  "dependencies": {
+    "github.com/LiteLDev/LeviLamina": ">=0.x",
+    "gitea.litebds.com/LiteLDev/legacy-script-engine-quickjs": ">=0.x",
+    "https://github.com/lgc-LLDev/FormAPIEx": ">=0.5.2"
   },
   "files": {
     "place": [

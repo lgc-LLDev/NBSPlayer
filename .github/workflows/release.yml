@@ -1,0 +1,73 @@
+name: Build and release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-n-release:
+    name: Build and release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout workspace
+        uses: actions/checkout@master
+        with:
+          repository: lgc-LLDev/workspace-js
+          submodules: true
+
+      - name: Get package folder name
+        env:
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          FOLDER_NAME=$(echo "${REPO_NAME}")
+          echo "FOLDER_NAME=${FOLDER_NAME}"
+          echo "FOLDER_NAME=${FOLDER_NAME}" >> $GITHUB_ENV
+
+      - name: Checkout current package submodule at specific commit
+        run: |-
+          cd plugins/${FOLDER_NAME}
+          git checkout ${{ github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install Corepack
+        run: |-
+          npm install -g corepack
+          corepack enable
+
+      - name: Install Node dependencies
+        run: yarn
+
+      - name: Build and copy dist files to temp folder
+        run: |-
+          yarn build
+          yarn tsx scripts/copy-tooth-files.ts ${FOLDER_NAME}
+
+      - name: Deploy
+        uses: lgc2333/git-publish-subdir-action@develop
+        env:
+          REPO: self
+          BRANCH: tooth-dist
+          FOLDER: github-release-tmp
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MESSAGE: 'upload dist [skip-ci]'
+          # SQUASH_HISTORY: true
+
+      - name: Get tooth version
+        run: |-
+          TOOTH_VERSION=$(yarn tsx scripts/read-version.ts ${FOLDER_NAME})
+          echo "TOOTH_VERSION=${TOOTH_VERSION}"
+          echo "TOOTH_VERSION=${TOOTH_VERSION}" >> $GITHUB_ENV
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.TOOTH_VERSION }}
+          target_commitish: tooth-dist
+          make_latest: true
+          body: Release v${{ env.TOOTH_VERSION }}

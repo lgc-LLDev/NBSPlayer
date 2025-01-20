@@ -1,6 +1,6 @@
 {
   "name": "nbs-player",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Play NBS files in MCBE with LL",
   "main": "dist/index.js",
   "scripts": {
