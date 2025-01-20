@@ -176,7 +176,7 @@ var require_FormAPIEx = __commonJS({
     var version2 = "0.5.2";
     var NAME = "FormAPIEx";
     var VERSION = version2.split(".").map((v) => Number(v));
-    var AUTHOR = "student_2333 <lgc2333@126.com>";
+    var AUTHOR = "LgCookie <lgc2333@126.com>";
     var LICENSE = "Apache-2.0";
     var FormClose7 = Symbol(`${NAME}_FormClose`);
     function formatError3(e) {
@@ -776,7 +776,7 @@ var import_package = require("../package.json");
 var PLUGIN_NAME = "NBSPlayer";
 var PLUGIN_VERSION = import_package.version.split(".").map((v) => Number(v));
 var PLUGIN_DESCRIPTION = import_package.description;
-var PLUGIN_EXTRA = { Author: "student_2333", License: "Apache-2.0" };
+var PLUGIN_EXTRA = { Author: "LgCookie", License: "Apache-2.0" };
 var BASE_PATH = `./plugins/${PLUGIN_NAME}`;
 var NBS_PATH = `${BASE_PATH}/nbs`;
 var DATA_PATH = `${BASE_PATH}/data`;
